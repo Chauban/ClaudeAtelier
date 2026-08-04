@@ -1,0 +1,11 @@
+{
+  // name 必须和 Cloudflare 上的 Worker 名字完全一致，否则构建会直接失败
+  "name": "claudeatelier",
+  "compatibility_date": "2026-08-04",
+
+  // 纯静态站：没有 Worker 脚本，不写 main，也不要写 assets.binding
+  "assets": {
+    "directory": "./",
+    "not_found_handling": "404-page"
+  }
+}

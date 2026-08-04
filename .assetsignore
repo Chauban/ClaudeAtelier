@@ -1,0 +1,19 @@
+# 不要上传成静态资源。
+# 注意：Workers 不像 Pages 会自动排除 .git / node_modules，必须手写。
+**/.git
+**/node_modules
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+
+# 同步脚本和日志没必要公开
+*.bat
+sync.log
+
+# 配置文件本身
+wrangler.jsonc
+.gitignore
+.assetsignore
+
+# _headers 和 _redirects 不要写进来 —— 它们是功能文件，
+# Workers 会读取但不会对外提供，加进忽略列表反而会失效。
