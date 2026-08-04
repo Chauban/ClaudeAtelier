@@ -14,6 +14,12 @@ set "REPOURL=https://github.com/Chauban/ClaudeAtelier.git"
 echo ============================================= >> "%LOG%"
 echo [%date% %time%] start >> "%LOG%"
 
+where git >nul 2>&1
+if errorlevel 1 (
+  echo [%date% %time%] ERROR: git not found >> "%LOG%"
+  exit /b 1
+)
+
 if not exist ".git" (
   echo [%date% %time%] ERROR: no git repo here >> "%LOG%"
   exit /b 1
@@ -23,6 +29,8 @@ git remote get-url origin >nul 2>&1
 if errorlevel 1 (
   git remote add origin "%REPOURL%" >> "%LOG%" 2>&1
   echo [%date% %time%] added remote origin >> "%LOG%"
+) else (
+  git remote set-url origin "%REPOURL%" >> "%LOG%" 2>&1
 )
 
 git add -A >> "%LOG%" 2>&1
