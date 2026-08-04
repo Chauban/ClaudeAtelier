@@ -1,29 +1,43 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 setlocal
-set DIR=%~dp0
-set SCRIPT=%DIR%sync-to-github-auto.bat
+set "DIR=%~dp0"
+set "SCRIPT=%DIR%sync-to-github-auto.bat"
 
-echo ============================================
-echo   安装 ClaudeAtelier 自动同步计划任务
-echo ============================================
+rem ============================================================
+rem  Keep this file pure ASCII - cmd.exe reads .bat in the OEM
+rem  codepage and UTF-8 Chinese text shatters the parser.
+rem  Task names are ASCII too, so schtasks /Query and /Delete
+rem  always match regardless of console codepage.
+rem ============================================================
+
+echo ============================================================
+echo   Install ClaudeAtelier auto-sync scheduled tasks
+echo ============================================================
 echo.
-echo 将建立两个任务：
-echo   1) 每天 23:00 自动 push
-echo   2) 每次登录 Windows 后 5 分钟自动 push 一次（补上关机期间漏掉的）
+echo   Two tasks will be created:
+echo     1) daily at 23:00          - push to GitHub
+echo     2) 5 min after each logon  - catch up what was missed
+echo.
+echo   Run sync-to-github.bat manually at least once first,
+echo   so the GitHub login is stored. Otherwise these silent
+echo   tasks will fail with no visible prompt.
 echo.
 pause
 
-schtasks /Create /TN "ClaudeAtelier-同步GitHub-每日" /TR "\"%SCRIPT%\"" /SC DAILY /ST 23:00 /F
-schtasks /Create /TN "ClaudeAtelier-同步GitHub-登录时" /TR "\"%SCRIPT%\"" /SC ONLOGON /DELAY 0005:00 /F
+schtasks /Create /TN "ClaudeAtelier-Sync-Daily" /TR "\"%SCRIPT%\"" /SC DAILY /ST 23:00 /F
+schtasks /Create /TN "ClaudeAtelier-Sync-OnLogon" /TR "\"%SCRIPT%\"" /SC ONLOGON /DELAY 0005:00 /F
 
 echo.
-echo ---- 当前已注册的任务 ----
-schtasks /Query /TN "ClaudeAtelier-同步GitHub-每日"
-schtasks /Query /TN "ClaudeAtelier-同步GitHub-登录时"
+echo ---- registered tasks ----
+schtasks /Query /TN "ClaudeAtelier-Sync-Daily"
+schtasks /Query /TN "ClaudeAtelier-Sync-OnLogon"
 
 echo.
-echo 装好了。日志会写到 sync.log。
-echo 想卸载就跑：schtasks /Delete /TN "ClaudeAtelier-同步GitHub-每日" /F
+echo   Done. Log file: sync.log
+echo.
+echo   To uninstall:
+echo     schtasks /Delete /TN "ClaudeAtelier-Sync-Daily" /F
+echo     schtasks /Delete /TN "ClaudeAtelier-Sync-OnLogon" /F
 echo.
 pause

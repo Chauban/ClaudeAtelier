@@ -1,34 +1,44 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-set LOG=%~dp0sync.log
+set "LOG=%~dp0sync.log"
 
-echo ================================= >> "%LOG%"
-echo [%date% %time%] 开始 >> "%LOG%"
+rem ============================================================
+rem  Silent scheduled sync. Keep this file pure ASCII - cmd.exe
+rem  reads .bat in the OEM codepage and UTF-8 Chinese text
+rem  shatters the parser. See sync-to-github.bat for details.
+rem ============================================================
+
+set "REPOURL=https://github.com/Chauban/ClaudeAtelier.git"
+
+echo ============================================= >> "%LOG%"
+echo [%date% %time%] start >> "%LOG%"
 
 if not exist ".git" (
-  echo [%date% %time%] 错误：还没有 git 仓库 >> "%LOG%"
+  echo [%date% %time%] ERROR: no git repo here >> "%LOG%"
   exit /b 1
 )
 
 git remote get-url origin >nul 2>&1
 if errorlevel 1 (
-  echo [%date% %time%] 错误：还没关联远程仓库，请先手动跑一次 sync-to-github.bat >> "%LOG%"
-  exit /b 1
+  git remote add origin "%REPOURL%" >> "%LOG%" 2>&1
+  echo [%date% %time%] added remote origin >> "%LOG%"
 )
 
 git add -A >> "%LOG%" 2>&1
+
 git diff --cached --quiet
 if not errorlevel 1 (
-  echo [%date% %time%] 没有新改动，跳过 >> "%LOG%"
+  echo [%date% %time%] no changes, skipped >> "%LOG%"
   exit /b 0
 )
 
-git commit -m "auto sync %date% %time%" >> "%LOG%" 2>&1
+git commit -m "sync %date% %time%" >> "%LOG%" 2>&1
 git push origin main >> "%LOG%" 2>&1
 if errorlevel 1 (
-  echo [%date% %time%] 推送失败 >> "%LOG%"
+  echo [%date% %time%] PUSH FAILED - see git output above >> "%LOG%"
   exit /b 1
 )
-echo [%date% %time%] 推送成功 >> "%LOG%"
+
+echo [%date% %time%] pushed OK >> "%LOG%"
 exit /b 0
