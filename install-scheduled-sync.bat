@@ -18,9 +18,14 @@ echo.
 echo   The card-generating agent only commits locally - it has no
 echo   GitHub credentials. These tasks do the pushing.
 echo.
+echo   Cards are generated at 00/04/08/12/16/20 and land as a
+echo   local commit around :13 - :17 past the hour.
+echo.
 echo   Two tasks will be created:
-echo     1) every 15 minutes        - push whatever is committed
-echo     2) 5 min after each logon  - catch up what was missed
+echo     1) 00:30 then every 4 hours  - 6 pushes a day, each
+echo        about 15 min after a card is committed
+echo     2) 5 min after each logon    - catches cards made while
+echo        the machine was off and generated late
 echo.
 echo   A push with nothing new is a no-op: no commit reaches
 echo   GitHub, so Cloudflare does not rebuild and no build
@@ -35,22 +40,25 @@ echo   cannot be created otherwise.
 echo.
 pause
 
-rem ---- remove the old daily task if it is still around -------
+rem ---- remove superseded tasks if they are still around ------
 schtasks /Delete /TN "ClaudeAtelier-Sync-Daily" /F >nul 2>&1
+schtasks /Delete /TN "ClaudeAtelier-Sync-Every15Min" /F >nul 2>&1
 
-schtasks /Create /TN "ClaudeAtelier-Sync-Every15Min" /TR "\"%SCRIPT%\" auto" /SC MINUTE /MO 15 /F
+rem  /RI 240 /DU 24:00 = repeat every 240 min for a full day,
+rem  i.e. 00:30 04:30 08:30 12:30 16:30 20:30 from ONE task.
+schtasks /Create /TN "ClaudeAtelier-Sync" /TR "\"%SCRIPT%\" auto" /SC DAILY /ST 00:30 /RI 240 /DU 24:00 /F
 schtasks /Create /TN "ClaudeAtelier-Sync-OnLogon" /TR "\"%SCRIPT%\" auto" /SC ONLOGON /DELAY 0005:00 /F
 
 echo.
 echo ---- registered tasks ----
-schtasks /Query /TN "ClaudeAtelier-Sync-Every15Min"
+schtasks /Query /TN "ClaudeAtelier-Sync"
 schtasks /Query /TN "ClaudeAtelier-Sync-OnLogon"
 
 echo.
 echo   Done. Log file: sync.log
 echo.
 echo   To uninstall:
-echo     schtasks /Delete /TN "ClaudeAtelier-Sync-Every15Min" /F
+echo     schtasks /Delete /TN "ClaudeAtelier-Sync" /F
 echo     schtasks /Delete /TN "ClaudeAtelier-Sync-OnLogon" /F
 echo.
 pause
