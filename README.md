@@ -2,7 +2,19 @@
 
 每 5 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
 
-目前共 **28** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **29** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0029 · 暗黑高级金属质感 · 英文
+
+<img src="web/2026-08/NO.0029_2026-08-05_S12-暗黑金属_EN.webp" width="320">
+
+> Nothing was pushing it. No current, no heat, no hand at all. It grew anyway.（没有电流，没有热，没有谁的手。没有什么在推它，它还是长了出来。）
+
+**化学与材料** — Pure tin plating grows its own hair. Single crystals — “tin whiskers” — erupt from plated surfaces at room temperature, with no voltage applied and no known trigger, at up to about 1 mm a year. That is enough to bridge two pins. On 17 April 2005 one shorted a circuit board and shut down Unit 3 of the Millstone nuclear plant in Connecticut. NASA has tracked such failures since the 1940s; the mechanism is still not fully understood.（纯锡镀层会自己长毛。锡的单晶——「锡须」——在室温下、无外加电压、也没有已知诱因的情况下自发从镀层里冒出来，每年可长约一毫米，足以搭通两根引脚。2005年4月17日，一根锡须使一块电路板短路，导致康涅狄格州米尔斯通核电站三号机组停堆。NASA 从1940年代起就记录这类故障，其生长机理至今仍未被完全弄清。）
+
+`2026-08-05 15:09` ｜ [原图](Cards/2026-08/NO.0029_2026-08-05_S12-暗黑金属_EN.png) ｜ [文字](text/2026-08/NO.0029_2026-08-05_S12-暗黑金属_EN.md)
 
 ---
 

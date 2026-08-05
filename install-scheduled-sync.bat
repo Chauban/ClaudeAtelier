@@ -2,7 +2,7 @@
 chcp 65001 >nul
 setlocal
 set "DIR=%~dp0"
-set "SCRIPT=%DIR%sync-to-github-auto.bat"
+set "SCRIPT=%DIR%sync-to-github.bat"
 
 rem ============================================================
 rem  Keep this file pure ASCII - cmd.exe reads .bat in the OEM
@@ -25,8 +25,8 @@ echo   tasks will fail with no visible prompt.
 echo.
 pause
 
-schtasks /Create /TN "ClaudeAtelier-Sync-Daily" /TR "\"%SCRIPT%\"" /SC DAILY /ST 23:00 /F
-schtasks /Create /TN "ClaudeAtelier-Sync-OnLogon" /TR "\"%SCRIPT%\"" /SC ONLOGON /DELAY 0005:00 /F
+schtasks /Create /TN "ClaudeAtelier-Sync-Daily" /TR "\"%SCRIPT%\" auto" /SC DAILY /ST 23:00 /F
+schtasks /Create /TN "ClaudeAtelier-Sync-OnLogon" /TR "\"%SCRIPT%\" auto" /SC ONLOGON /DELAY 0005:00 /F
 
 echo.
 echo ---- registered tasks ----
