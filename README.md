@@ -2,7 +2,19 @@
 
 每 5 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
 
-目前共 **33** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **34** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0034 · 植物学图鉴插画 · 英文
+
+<img src="web/2026-08/NO.0034_2026-08-06_S20-植物图鉴_EN.webp" width="320">
+
+> What you call imagination may only be the world, arriving quietly enough that you take the credit. / 你以为是想象出来的东西，也许只是世界悄悄来了一趟，而你把功劳记在了自己名下。
+
+**心理学与认知** — In 1910 Cheves West Perky had people stare at a blank screen and picture a banana. Behind the screen she was faintly projecting one, standing upright. They described their “imagined” banana as standing on end — surprised at themselves, and unaware that they were simply looking at it. / 1910 年，佩尔基让受试者盯着一块空白屏幕，想象一根香蕉。屏幕背后，她正悄悄投出一根极淡的、竖立着的香蕉。受试者形容自己「想象」出的香蕉是立着的，还为此感到意外——他们并不知道，自己只是在看着它。
+
+`2026-08-06 12:10` ｜ [原图](Cards/2026-08/NO.0034_2026-08-06_S20-植物图鉴_EN.png) ｜ [文字](text/2026-08/NO.0034_2026-08-06_S20-植物图鉴_EN.md)
 
 ---
 

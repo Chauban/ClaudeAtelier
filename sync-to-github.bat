@@ -66,6 +66,17 @@ if errorlevel 1 (
   git remote set-url origin "%REPOURL%" >> "%LOG%" 2>&1
 )
 
+rem ---- 1.5 clear stale locks -------------------------------
+rem  A card-generating run that dies mid-commit leaves
+rem  .git/index.lock (also HEAD.lock, objects/maintenance.lock)
+rem  behind, and every later sync dies on "Unable to create
+rem  index.lock: File exists". Cards then pile up unpublished
+rem  and nobody notices. Any lock older than 10 minutes cannot
+rem  belong to a live git process here, so remove it.
+echo   [1.5/4] stale locks
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "Get-ChildItem -LiteralPath '%~dp0.git' -Filter *.lock -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { ((Get-Date) - $_.LastWriteTime).TotalMinutes -gt 10 } | ForEach-Object { Write-Output ('removed stale lock: ' + $_.FullName); Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }" >> "%LOG%" 2>&1
+
 rem ---- 2. stage --------------------------------------------
 echo   [2/4] stage
 git add -A >> "%LOG%" 2>&1
@@ -121,6 +132,12 @@ echo     "remote contains work that you do not have locally"
 echo         GitHub has commits you do not have. Run:
 echo             git pull --rebase origin main
 echo         then run this script again.
+echo.
+echo     "Unable to create ... index.lock: File exists"
+echo         A leftover lock newer than 10 minutes, so it was
+echo         not auto-cleared. If no git process is running,
+echo         delete .git\index.lock (and HEAD.lock,
+echo         .git\objects\maintenance.lock) by hand.
 echo   ------------------------------------------------------------
 echo.
 echo   This window stays open on purpose. Copy the error above.
