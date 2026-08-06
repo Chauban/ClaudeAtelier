@@ -67,15 +67,20 @@ if errorlevel 1 (
 )
 
 rem ---- 1.5 clear stale locks -------------------------------
-rem  A card-generating run that dies mid-commit leaves
-rem  .git/index.lock (also HEAD.lock, objects/maintenance.lock)
-rem  behind, and every later sync dies on "Unable to create
-rem  index.lock: File exists". Cards then pile up unpublished
-rem  and nobody notices. Any lock older than 10 minutes cannot
-rem  belong to a live git process here, so remove it.
+rem  The card-generating agent runs in a Linux sandbox whose
+rem  mount of this folder has no delete permission. Its git
+rem  commit succeeds, but git cannot remove the lock files it
+rem  made - .git/index.lock, HEAD.lock, objects/maintenance.lock
+rem  are left behind on EVERY generated card. Every later sync
+rem  then dies on "Unable to create index.lock: File exists"
+rem  and cards pile up unpublished with nobody noticing (this
+rem  cost ~20 hours and 4 cards on 2026-08-05).
+rem  Windows has full delete rights here, so this side cleans up.
+rem  A lock older than 5 minutes cannot belong to a live git
+rem  process - a commit in this repo takes seconds.
 echo   [1.5/4] stale locks
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "Get-ChildItem -LiteralPath '%~dp0.git' -Filter *.lock -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { ((Get-Date) - $_.LastWriteTime).TotalMinutes -gt 10 } | ForEach-Object { Write-Output ('removed stale lock: ' + $_.FullName); Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }" >> "%LOG%" 2>&1
+  "Get-ChildItem -LiteralPath '%~dp0.git' -Filter *.lock -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { ((Get-Date) - $_.LastWriteTime).TotalMinutes -gt 5 } | ForEach-Object { Write-Output ('removed stale lock: ' + $_.FullName); Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }" >> "%LOG%" 2>&1
 
 rem ---- 2. stage --------------------------------------------
 echo   [2/4] stage
