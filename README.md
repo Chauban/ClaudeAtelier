@@ -2,7 +2,20 @@
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
 
-目前共 **38** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **39** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0039 · 极光渐变梦幻 · 西班牙文
+
+<img src="web/2026-08/NO.0039_2026-08-07_S27-极光渐变梦幻_ES.webp" width="320">
+
+> No todo lo que se apaga fracasó: hay luces que solo llegaron antes que los ojos capaces de verlas. / 不是所有熄灭的光都失败了；有些光只是比能看见它的眼睛来得更早。
+
+**科技与发明史** — En 1865 el telégrafo francés abrió entre París y Lyon el primer servicio comercial de fax del mundo: el pantelégrafo de Giovanni Caselli. Un péndulo de dos metros recorría línea por línea una hoja de estaño escrita con tinta aislante, y otro péndulo sincronizado redibujaba el trazo al otro extremo. Llegó once años antes que el teléfono de Bell y transmitió cerca de 5.000 despachos en su primer año, hasta que la guerra franco-prusiana de 1870 lo apagó. / 1865 年，法国电报部门在巴黎与里昂之间开通了世界上第一条商用传真线路，用的是意大利人卡塞利发明的「泛电报机」：一支两米长的钟摆逐行扫过用绝缘墨水写字的锡箔，另一端同步摆动的钟摆便把笔迹重新画出来。它比贝尔的电话早了十一年，第一年就传送了近五千份电文，直到 1870 年普法战争把它熄灭。
+
+`2026-08-07 04:09` ｜ [原图](Cards/2026-08/NO.0039_2026-08-07_S27-极光渐变梦幻_ES.png) ｜ [文字](text/2026-08/NO.0039_2026-08-07_S27-极光渐变梦幻_ES.md)
 
 ---
 
