@@ -668,7 +668,48 @@ fetch(CSV_URL)
       + String(err) + '</small></div>';
   });
 
+/* ============================================================
+   回到标签页时自动重取台账
+
+   这个页面只在加载时 fetch 一次 CSV。标签页开着过夜，第二天看到
+   的就还是昨天那一屏 —— 看起来像「同步断了」，其实只是页面从没
+   重新取过数。下面让它自己知道该重取。
+
+   触发：标签页重新可见 / 窗口重新获得焦点
+   节流：距上次拉取不足 5 分钟就跳过（和 _headers 里 CSV 的
+        max-age=300 对齐，再频繁也只是打到缓存）
+   静默：台账内容没变就什么都不做，不碰 DOM
+   ============================================================ */
+let LAST_FETCH  = Date.now();
+let LAST_SIG    = "";
+let FIRST_BUILD = true;
+const REFETCH_AFTER = 5 * 60 * 1000;
+
+/* 签名：长度 + 末尾若干字符。新卡片总是追加在末行，足够判断有无变化 */
+function sigOf(text){
+  const t = text.trim();
+  return t.length + "|" + t.slice(-200);
+}
+
+function refetch(){
+  if (box.classList.contains("on")) return;   // 灯箱开着时不打扰，下次切回来再说
+  if (Date.now() - LAST_FETCH < REFETCH_AFTER) return;
+  LAST_FETCH = Date.now();
+  fetch(CSV_URL, { cache:"no-store" })
+    .then(r => r.ok ? r.text() : Promise.reject(r.status))
+    .then(text => { if (sigOf(text) !== LAST_SIG) build(text); })
+    .catch(() => {});                          // 网络不好就算了，下次再试
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refetch();
+});
+addEventListener("focus", refetch);
+addEventListener("pageshow", e => { if (e.persisted) refetch(); });  // 从 bfcache 回来
+
 function build(text){
+  LAST_SIG   = sigOf(text);
+  LAST_FETCH = Date.now();
   const rows = parseCSV(text).filter(r => r.length > 1 && r[0].trim() !== "");
   const head = rows.shift().map(h => h.trim());
   const col = {}; head.forEach((h,i) => col[h] = i);
@@ -718,10 +759,14 @@ function build(text){
   $("#footStat").textContent =
     `共 ${CARDS.length} 张 · 每 4 小时一张 · ${DICT.style.length} 种风格 · ${DICT.lang.length} 种语言 · ${DICT.topic.length} 个领域`;
 
-  const h = decodeURIComponent(location.hash.replace("#",""));
-  if (h){
-    const i = VIEW.findIndex(c => c.noPad === h || c.no === h.replace(/^NO\.?0*/i,""));
-    if (i >= 0) setTimeout(() => open(i), 260);
+  /* 只在首次构建时认 hash —— 否则每次自动重取都会把灯箱重新弹开 */
+  if (FIRST_BUILD){
+    FIRST_BUILD = false;
+    const h = decodeURIComponent(location.hash.replace("#",""));
+    if (h){
+      const i = VIEW.findIndex(c => c.noPad === h || c.no === h.replace(/^NO\.?0*/i,""));
+      if (i >= 0) setTimeout(() => open(i), 260);
+    }
   }
 }
 
@@ -759,23 +804,38 @@ function renderDropdowns(){
         `<div class="dd-item" data-v="${esc(d.code)}">${esc(d.label)}<span class="n">${d.count}</span></div>`
       ).join("");
 
-    panel.addEventListener("click", e => {
-      const it = e.target.closest(".dd-item"); if(!it) return;
-      filters[key] = it.dataset.v || null;
-      syncDropdown(dd);
-      dd.classList.remove("open");
-      applyFilters();
-    });
+    /* 自动重取会重跑本函数。监听器只能绑一次：
+       .dd-panel 和按钮都是常驻节点（这里换的只是 panel 的子节点），
+       重复绑定会让 toggle 被触发两次，下拉表现为「点了没反应」。 */
+    if (!dd._bound){
+      dd._bound = true;
 
-    dd.querySelector("[data-toggle]").addEventListener("click", e => {
-      e.stopPropagation();
-      const wasOpen = dd.classList.contains("open");
-      document.querySelectorAll(".dd").forEach(d => d.classList.remove("open"));
-      dd.classList.toggle("open", !wasOpen);
-    });
+      panel.addEventListener("click", e => {
+        const it = e.target.closest(".dd-item"); if(!it) return;
+        filters[key] = it.dataset.v || null;
+        syncDropdown(dd);
+        dd.classList.remove("open");
+        applyFilters();
+      });
+
+      dd.querySelector("[data-toggle]").addEventListener("click", e => {
+        e.stopPropagation();
+        const wasOpen = dd.classList.contains("open");
+        document.querySelectorAll(".dd").forEach(d => d.classList.remove("open"));
+        dd.classList.toggle("open", !wasOpen);
+      });
+    }
+
+    /* panel 的内容是新生成的，把当前筛选状态贴回去，
+       否则重取后按钮会显示「风格」而实际仍在筛选中 */
+    syncDropdown(dd);
   });
-  document.addEventListener("click", () =>
-    document.querySelectorAll(".dd").forEach(d => d.classList.remove("open")));
+
+  if (!document._ddCloseBound){
+    document._ddCloseBound = true;
+    document.addEventListener("click", () =>
+      document.querySelectorAll(".dd").forEach(d => d.classList.remove("open")));
+  }
 }
 
 function syncDropdown(dd){

@@ -97,6 +97,27 @@ if errorlevel 1 (
   echo [%date% %time%] nothing new to commit >> "%LOG%"
 )
 
+rem ---- 3.5 reconcile with remote ---------------------------
+rem  GitHub may already hold commits this machine does not have
+rem  - edited straight on github.com, or pushed from elsewhere.
+rem  A bare push then dies on "remote contains work that you do
+rem  not have locally" and keeps dying EVERY run, forever, with
+rem  nobody told: on 2026-08-08 it failed three times in a row
+rem  and held back three finished cards. Rebase local commits
+rem  on top of the remote instead.
+rem  On conflict, abort: the tree is left byte-for-byte as it
+rem  was and a human merges by hand. Nothing is ever lost.
+rem  Runs AFTER commit, so the tree is clean - rebase refuses
+rem  to run with unstaged changes.
+echo   [3.5/4] reconcile
+git pull --rebase origin main >> "%LOG%" 2>&1
+if errorlevel 1 (
+  echo         CONFLICT - rebase aborted, nothing changed
+  echo [%date% %time%] rebase CONFLICT - aborted >> "%LOG%"
+  git rebase --abort >> "%LOG%" 2>&1
+  goto FAIL
+)
+
 rem ---- 4. push ---------------------------------------------
 rem  Always push: there may be local commits from earlier runs
 rem  that never made it to GitHub.
