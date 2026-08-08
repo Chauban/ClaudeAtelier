@@ -31,6 +31,8 @@
   --accent:#c8a86b;          /* 铜金，两套通用的强调色基调 */
   --gap:26px;
   --ease:cubic-bezier(.2,.8,.2,1);
+  /* 版心留白。轨道和 chip 条要靠它算出血用的负外边距，所以提成变量 */
+  --pad:clamp(18px,4vw,56px);
 }
 
 html[data-theme="dark"]{
@@ -128,7 +130,10 @@ body::before{
 a{color:inherit}
 ::selection{background:var(--accent);color:#0a0a0b}
 
-.wrap{position:relative;z-index:2;max-width:1760px;margin:0 auto;padding:0 clamp(18px,4vw,56px)}
+.wrap{
+  position:relative;z-index:2;max-width:1760px;margin:0 auto;
+  padding-inline:max(var(--pad), env(safe-area-inset-left)) max(var(--pad), env(safe-area-inset-right));
+}
 
 /* ============ Header ============ */
 header{padding:clamp(44px,8vh,96px) 0 clamp(22px,3.4vh,34px);position:relative}
@@ -163,7 +168,7 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .theme-toggle button:hover{color:var(--fg)}
 
 /* ============ 横向精选轨道 ============ */
-.rail-sec{margin:clamp(26px,4vh,44px) 0 clamp(18px,3vh,34px);position:relative;--railpad:clamp(18px,4vw,56px)}
+.rail-sec{margin:clamp(26px,4vh,44px) 0 clamp(18px,3vh,34px);position:relative;--railpad:var(--pad)}
 .rail-head{
   display:flex;align-items:baseline;gap:12px;margin-bottom:14px;
   font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--fg-4);
@@ -179,18 +184,25 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
   -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--railpad),#000 calc(100% - var(--railpad)),transparent 100%);
   mask-image:linear-gradient(90deg,transparent 0,#000 var(--railpad),#000 calc(100% - var(--railpad)),transparent 100%);
 }
+/* 触摸端一律走浏览器原生横滚：不设 touch-action（让浏览器按起手方向自己锁轴，
+   顺带保住竖向翻页），也不设 scroll-behavior:smooth —— 那会把 railStep() 之外
+   的每次 scrollLeft 写入都动画化，和惯性滚动打架。需要平滑的地方都显式传 behavior。 */
 .rail{
   display:flex;gap:16px;align-items:flex-end;
   overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;
-  scroll-snap-type:x proximity;scroll-behavior:smooth;
+  scroll-snap-type:x proximity;
   scroll-padding-inline:var(--railpad);
   padding:10px var(--railpad) 44px;      /* 底部留够，别把 hover 投影裁平 */
   margin-bottom:-28px;
   scrollbar-width:none;-ms-overflow-style:none;
-  cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-x;
 }
 .rail::-webkit-scrollbar{display:none}
-.rail.dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
+/* 抓手光标和禁选只对鼠标拖拽有意义 */
+@media (hover:hover){
+  .rail{cursor:grab;user-select:none;-webkit-user-select:none}
+  .rail.dragging{cursor:grabbing}
+}
+.rail.dragging{scroll-snap-type:none}
 .rail.dragging .rail-item{pointer-events:none}
 .rail-item{
   flex:0 0 auto;scroll-snap-align:start;
@@ -242,6 +254,7 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
   background:var(--toolbar-fade);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
 }
+.chips{display:flex;gap:10px;align-items:center;min-width:0}
 .btn{
   appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg-2);
   font:inherit;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;
@@ -272,6 +285,49 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .dd-item:hover{background:var(--surface-2);color:var(--fg)}
 .dd-item.sel{color:var(--accent-text);background:var(--accent-tint)}
 .dd-item .n{font-size:11px;color:var(--fg-4);font-variant-numeric:tabular-nums}
+
+/* ============ 移动端筛选：底部弹层 ============
+   chip 条一旦变成 overflow-x:auto，绝对定位的 .dd-panel 就会被裁掉；
+   而 .toolbar 的 backdrop-filter 会给 fixed 后代造包含块，改 fixed 也救不回来。
+   所以面板元素运行时整个搬到这个 body 级宿主里，关闭时再搬回原 .dd。 */
+#sheet{position:fixed;inset:0;z-index:80;display:none}
+#sheet.on{display:block}
+#sheet::before{
+  content:"";position:absolute;inset:0;background:var(--scrim);
+  animation:fade .22s ease;
+}
+.sheet-card{
+  position:absolute;left:0;right:0;bottom:0;
+  background:var(--bg-soft);
+  border-top:1px solid var(--line);
+  border-radius:18px 18px 0 0;
+  box-shadow:var(--shadow-panel);
+  padding:0 8px calc(14px + env(safe-area-inset-bottom));
+  max-height:78vh;display:flex;flex-direction:column;
+  animation:sheetUp .26s var(--ease);
+}
+@keyframes sheetUp{from{transform:translateY(100%)}}
+.sheet-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 10px 8px;flex:0 0 auto;
+  font-size:12px;letter-spacing:.2em;color:var(--fg-4);
+}
+/* 顶部小抓手，暗示这是可关的浮层 */
+.sheet-head::before{
+  content:"";position:absolute;top:7px;left:50%;transform:translateX(-50%);
+  width:34px;height:4px;border-radius:99px;background:var(--line-strong);
+}
+#sheetClose{
+  appearance:none;border:0;background:transparent;color:var(--fg-3);
+  font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;
+}
+#sheet .dd-panel{
+  position:static;display:block;width:100%;min-width:0;
+  max-height:none;flex:1 1 auto;overflow-y:auto;
+  border:0;background:transparent;box-shadow:none;padding:0 2px 4px;
+  backdrop-filter:none;-webkit-backdrop-filter:none;animation:none;
+}
+#sheet .dd-item{padding:12px 14px;font-size:14.5px;border-radius:11px}
 
 .search{flex:1 1 190px;min-width:150px;position:relative;display:flex;align-items:center}
 .search input{
@@ -340,7 +396,11 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
   background:radial-gradient(60% 50% at 50% 50%, var(--c,#444) 0%, transparent 72%);
   opacity:var(--glow-op);transition:background .7s;
 }
-.stage{position:relative;perspective:2200px;z-index:2}
+/* transform 留给拖拽手势用 —— 翻面动画占的是 .flipper 的 transform，两者不打架 */
+.stage{position:relative;perspective:2200px;z-index:2;
+  transition:transform .26s var(--ease), opacity .26s var(--ease)}
+.stage.dragging{transition:none}
+.stage.snapout{transition:transform .2s ease-out, opacity .2s ease-out}
 .flipper{position:relative;transform-style:preserve-3d;transition:transform .78s cubic-bezier(.35,.02,.2,1)}
 .flipper.flip{transform:rotateY(180deg)}
 .face{
@@ -408,20 +468,24 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .nav.next{right:clamp(10px,3vw,42px)}
 .nav svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7}
 .close{
-  position:absolute;top:clamp(12px,2.4vh,26px);right:clamp(12px,2.4vw,30px);z-index:6;
+  position:absolute;z-index:6;
+  top:calc(clamp(12px,2.4vh,26px) + env(safe-area-inset-top));
+  right:calc(clamp(12px,2.4vw,30px) + env(safe-area-inset-right));
   width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
   color:var(--fg-2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;
   transition:background .2s,color .2s}
 .close:hover{background:var(--surface-3);color:var(--fg)}
 .boxidx{
-  position:absolute;top:clamp(14px,2.6vh,28px);left:clamp(14px,2.6vw,32px);z-index:6;
+  position:absolute;z-index:6;
+  top:calc(clamp(14px,2.6vh,28px) + env(safe-area-inset-top));
+  left:calc(clamp(14px,2.6vw,32px) + env(safe-area-inset-left));
   font-size:11px;letter-spacing:.2em;color:var(--fg-4);font-variant-numeric:tabular-nums}
 
 /* 灯箱底部：横向胶片条 */
 .film{
   position:absolute;left:0;right:0;bottom:0;z-index:6;
   display:flex;gap:8px;align-items:center;
-  padding:14px clamp(12px,3vw,40px) 16px;
+  padding:14px clamp(12px,3vw,40px) calc(16px + env(safe-area-inset-bottom));
   overflow-x:auto;scrollbar-width:none;scroll-behavior:smooth;
   background:linear-gradient(transparent, var(--bg));
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 30px,#000 calc(100% - 30px),transparent);
@@ -449,7 +513,8 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .search input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 footer{
-  padding:0 0 70px;color:var(--fg-5);font-size:11.5px;letter-spacing:.05em;
+  padding:0 0 calc(70px + env(safe-area-inset-bottom));
+  color:var(--fg-5);font-size:11.5px;letter-spacing:.05em;
   display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
   border-top:1px solid var(--line-soft);margin-top:20px;padding-top:26px;
 }
@@ -462,8 +527,23 @@ footer a:hover{color:var(--accent-text)}
 
 @media (max-width:700px){
   .toolbar{gap:8px}
+  /* sticky + backdrop-filter 在安卓上是已知的滚动掉帧源；换成更实的底色 */
+  .toolbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
   .btn{padding:7px 12px;font-size:12.5px}
-  .search{order:9;flex-basis:100%}
+  /* chip 永不换行：整条横滑，两端出血到视口边缘，滑到底不像被切断 */
+  .chips{
+    flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    scrollbar-width:none;-ms-overflow-style:none;
+    margin-inline:calc(-1 * var(--pad));
+    padding-inline:var(--pad);
+    scroll-padding-inline:var(--pad);
+  }
+  .chips::-webkit-scrollbar{display:none}
+  .chips .btn{flex:0 0 auto}
+  /* 第二行：搜索框 + 计数 */
+  .search{order:9;flex:1 1 auto;flex-basis:auto;min-width:0}
+  .spacer{display:none}
+  .count{order:10}
   .hint{display:none}
   .nav{width:40px;height:40px}
   .nav.prev{left:6px}.nav.next{right:6px}
@@ -471,6 +551,8 @@ footer a:hover{color:var(--accent-text)}
   .theme-toggle{top:14px}
   header{padding-top:64px}
   .rail-head .tip{display:none}
+  /* 全屏遮挡下模糊强度看不太出来，降一档省 GPU */
+  #box{backdrop-filter:blur(12px) saturate(.85);-webkit-backdrop-filter:blur(12px) saturate(.85)}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.06s !important}
@@ -512,25 +594,27 @@ footer a:hover{color:var(--accent-text)}
   </section>
 
   <nav class="toolbar">
-    <div class="dd" data-key="style">
-      <button class="btn" data-toggle>风格 <i class="caret"></i></button>
-      <div class="dd-panel"></div>
-    </div>
-    <div class="dd" data-key="lang">
-      <button class="btn" data-toggle>语言 <i class="caret"></i></button>
-      <div class="dd-panel"></div>
-    </div>
-    <div class="dd" data-key="topic">
-      <button class="btn" data-toggle>领域 <i class="caret"></i></button>
-      <div class="dd-panel"></div>
+    <div class="chips" id="chips">
+      <div class="dd" data-key="style">
+        <button class="btn" data-toggle>风格 <i class="caret"></i></button>
+        <div class="dd-panel"></div>
+      </div>
+      <div class="dd" data-key="lang">
+        <button class="btn" data-toggle>语言 <i class="caret"></i></button>
+        <div class="dd-panel"></div>
+      </div>
+      <div class="dd" data-key="topic">
+        <button class="btn" data-toggle>领域 <i class="caret"></i></button>
+        <div class="dd-panel"></div>
+      </div>
+      <button class="btn" id="todayBtn" title="按日期固定，每天换一张">今日</button>
+      <button class="btn" id="randBtn" title="随机抽一张">随机</button>
     </div>
     <label class="search" id="searchWrap">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input id="q" type="search" placeholder="搜索金句、冷知识、编号…" autocomplete="off" spellcheck="false">
       <span class="clr" id="clrBtn" title="清空">×</span>
     </label>
-    <button class="btn" id="todayBtn" title="按日期固定，每天换一张">今日</button>
-    <button class="btn" id="randBtn" title="随机抽一张">随机</button>
     <span class="spacer"></span>
     <span class="count" id="count"></span>
   </nav>
@@ -564,6 +648,16 @@ footer a:hover{color:var(--accent-text)}
     <div class="hint" id="hint">点击卡片翻面 · <kbd>空格</kbd></div>
   </div>
   <div class="film" id="film" aria-label="胶片条"></div>
+</div>
+
+<!-- 移动端筛选弹层：.dd-panel 运行时搬进 .sheet-card -->
+<div id="sheet">
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-head">
+      <span id="sheetTitle"></span>
+      <button id="sheetClose" type="button" aria-label="关闭">×</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -693,6 +787,7 @@ function sigOf(text){
 
 function refetch(){
   if (box.classList.contains("on")) return;   // 灯箱开着时不打扰，下次切回来再说
+  if (sheetDd) return;                        // 移动端筛选面板开着时同理，别把面板从手指下抽走
   if (Date.now() - LAST_FETCH < REFETCH_AFTER) return;
   LAST_FETCH = Date.now();
   fetch(CSV_URL, { cache:"no-store" })
@@ -795,9 +890,40 @@ function labelFor(key, code){
    ============================================================ */
 const KEYNAME = { style:"风格", lang:"语言", topic:"领域" };
 
+/* 窄屏走底部弹层：面板被搬去 body 层，dd.querySelector(".dd-panel") 会落空，
+   所以面板引用一律走 dd._panel。 */
+const SHEET_MQ = matchMedia("(max-width:700px)");
+const sheet = $("#sheet"), sheetCard = sheet.querySelector(".sheet-card");
+let sheetDd = null;
+
+function openSheet(dd){
+  if (sheetDd) closeSheet();
+  sheetDd = dd;
+  $("#sheetTitle").textContent = "选择" + KEYNAME[dd.dataset.key];
+  sheetCard.appendChild(dd._panel);
+  sheet.classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+function closeSheet(){
+  if (!sheetDd) return;
+  sheetDd.appendChild(sheetDd._panel);      // 搬回原位，否则 sync/渲染都找不到它
+  sheetDd = null;
+  sheet.classList.remove("on");
+  if (!box.classList.contains("on")) document.body.style.overflow = "";
+}
+sheet.addEventListener("click", e => {
+  e.stopPropagation();                      // 别让 document 上的「关掉所有下拉」顺手处理
+  if (e.target === sheet) closeSheet();     // 点遮罩
+});
+$("#sheetClose").addEventListener("click", closeSheet);
+/* 跨过断点时先归位，免得面板留在错误的父节点里 */
+if (SHEET_MQ.addEventListener) SHEET_MQ.addEventListener("change", closeSheet);
+else SHEET_MQ.addListener(closeSheet);          // 老 Safari
+
 function renderDropdowns(){
   document.querySelectorAll(".dd").forEach(dd => {
     const key = dd.dataset.key, panel = dd.querySelector(".dd-panel");
+    dd._panel = panel;
     panel.innerHTML =
       `<div class="dd-item sel" data-v="">全部${KEYNAME[key]}<span class="n">${CARDS.length}</span></div>` +
       DICT[key].map(d =>
@@ -815,11 +941,16 @@ function renderDropdowns(){
         filters[key] = it.dataset.v || null;
         syncDropdown(dd);
         dd.classList.remove("open");
+        closeSheet();
         applyFilters();
       });
 
       dd.querySelector("[data-toggle]").addEventListener("click", e => {
         e.stopPropagation();
+        if (SHEET_MQ.matches){
+          if (sheetDd === dd) closeSheet(); else openSheet(dd);
+          return;
+        }
         const wasOpen = dd.classList.contains("open");
         document.querySelectorAll(".dd").forEach(d => d.classList.remove("open"));
         dd.classList.toggle("open", !wasOpen);
@@ -839,7 +970,7 @@ function renderDropdowns(){
 }
 
 function syncDropdown(dd){
-  const key = dd.dataset.key, panel = dd.querySelector(".dd-panel");
+  const key = dd.dataset.key, panel = dd._panel;
   panel.querySelectorAll(".dd-item").forEach(x =>
     x.classList.toggle("sel", (x.dataset.v || null) === filters[key]));
   const btn = dd.querySelector("[data-toggle]");
@@ -893,7 +1024,8 @@ function jumpTo(c){
   if (i >= 0) open(i);
 }
 
-/* 指针拖拽横滚。
+/* 鼠标拖拽横滚。触摸不走这里 —— 手指按下时浏览器已经在做原生滚动了，
+   再写一遍 scrollLeft 就是双份位移，手感表现为「不跟手 + 左右晃」。
    注意：这里刻意不用 setPointerCapture —— 捕获会把随后的 click 重定向到 #rail，
    .rail-item 上的点击处理器就再也收不到事件了。改成在 window 上听 move/up。 */
 let dragging = false, dragStartX = 0, dragStartL = 0, dragMoved = false;
@@ -912,6 +1044,7 @@ function endDrag(){
   setTimeout(() => { dragMoved = false; }, 0);   // click 在此之前派发，用它挡住拖完的误触
 }
 rail.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "mouse") return;   // 触摸/笔：交给浏览器原生滚动
   if (e.button !== 0) return;
   dragging = true; dragMoved = false;
   dragStartX = e.clientX; dragStartL = rail.scrollLeft;
@@ -1118,6 +1251,10 @@ function open(i){
   bigImg.src = c.web; bigImg.alt = c.noPad + " " + c.style;
   sizeStage(c);
 
+  /* 预取左右邻居的整图，否则滑动动画放完了图还没到，反而更显空 */
+  const idle = window.requestIdleCallback || (fn => setTimeout(fn, 1));
+  idle(() => { [VIEW[i+1], VIEW[i-1]].forEach(n => { if (n) new Image().src = n.web; }); });
+
   const srcHost = c.source ? safeHost(c.source) : "";
   back.innerHTML =
     `<div class="b-head"><span class="num">${c.noPad}</span><span>${esc(c.dt)}</span></div>
@@ -1144,12 +1281,25 @@ function open(i){
      </div>`;
 
   const sl = back.querySelector("#shareLink");
+  if (navigator.share) sl.textContent = "分享";
   sl.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
     const url = location.origin + location.pathname + "#" + c.noPad;
-    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
-      .then(() => { sl.textContent = "已复制 ✓"; setTimeout(()=> sl.textContent="复制链接", 1600); })
-      .catch(() => { location.hash = c.noPad; });
+    const copy = () =>
+      (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+        .then(() => {
+          const was = sl.textContent;
+          sl.textContent = "已复制 ✓";
+          setTimeout(() => { sl.textContent = was; }, 1600);
+        })
+        .catch(() => { location.hash = c.noPad; });
+
+    if (navigator.share){
+      navigator.share({ title: c.noPad + " · " + c.style, text: c.quote, url })
+        .catch(err => { if (!err || err.name !== "AbortError") copy(); });   // 用户取消不算失败
+      return;
+    }
+    copy();
   });
 
   $("#boxidx").textContent = `${i+1} / ${VIEW.length}`;
@@ -1163,7 +1313,11 @@ function open(i){
   if (firstOpen){ lastFocus = document.activeElement; requestAnimationFrame(() => markFilm(i)); }
   else markFilm(i);
   if (firstOpen) $("#closeBtn").focus({ preventScroll:true });
-  history.replaceState(null, "", "#" + c.noPad);
+
+  /* 首开压一条历史，安卓返回键先关灯箱而不是直接离站；
+     灯箱里翻页只 replace，别让翻 40 张压 40 条历史。 */
+  if (firstOpen) history.pushState({ box:1 }, "", "#" + c.noPad);
+  else history.replaceState({ box:1 }, "", "#" + c.noPad);
 }
 let lastFocus = null;
 
@@ -1211,10 +1365,20 @@ function sizeStage(c){
 }
 addEventListener("resize", () => { if (cur >= 0 && box.classList.contains("on")) sizeStage(VIEW[cur]); });
 
+/* 主动关：退掉 open() 压进去的那条历史，真正的关闭在 popstate 里做，
+   免得历史栈里留一条指向已关灯箱的记录。 */
 function close(){
+  if (!box.classList.contains("on")) return;
+  if (history.state && history.state.box){ history.back(); return; }
+  closeNow();
+}
+function closeNow(){
   box.classList.remove("on");
-  document.body.style.overflow = "";
-  history.replaceState(null, "", location.pathname + location.search);
+  document.body.style.overflow = sheetDd ? "hidden" : "";
+  resetStage();
+  animating = false;
+  // 地址栏别留着 #NO.xxxx，否则刷新又弹回灯箱
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   const el = cur >= 0 && VIEW[cur] && VIEW[cur].el;
   if (el && el.scrollIntoView) el.scrollIntoView({ block:"center", behavior:SMOOTH });
   // 焦点还给来处，否则会掉回 <body>
@@ -1222,6 +1386,9 @@ function close(){
   if (back2 && back2.focus) back2.focus({ preventScroll:true });
   lastFocus = null;
 }
+addEventListener("popstate", () => {
+  if (box.classList.contains("on")) closeNow();
+});
 function step(d){ const n = cur + d; if (n >= 0 && n < VIEW.length) open(n); }
 function flip(){
   flipped = !flipped;
@@ -1232,10 +1399,16 @@ function flip(){
 $("#closeBtn").addEventListener("click", close);
 $("#prevBtn").addEventListener("click", e => { e.stopPropagation(); step(-1); });
 $("#nextBtn").addEventListener("click", e => { e.stopPropagation(); step(1); });
-flipper.addEventListener("click", e => { if (!e.target.closest("a")) flip(); });
+/* swiped：刚拖过就别把这次 click 当成翻面（横滑没到阈值时浏览器照样派发 click） */
+flipper.addEventListener("click", e => { if (!swiped && !e.target.closest("a")) flip(); });
 box.addEventListener("click", e => { if (e.target === box || e.target === $("#stage")) close(); });
 
 addEventListener("keydown", e => {
+  if (e.key === "Escape" && (sheetDd || document.querySelector(".dd.open"))){
+    closeSheet();
+    document.querySelectorAll(".dd").forEach(d => d.classList.remove("open"));
+    return;
+  }
   if (!box.classList.contains("on")){
     if (e.key === "/" && document.activeElement !== qi){ e.preventDefault(); qi.focus(); }
     return;
@@ -1246,19 +1419,113 @@ addEventListener("keydown", e => {
   else if (e.key === " " || e.key === "Enter"){ e.preventDefault(); flip(); }
 });
 
-/* 移动端滑动切换 */
-let tx = 0, ty = 0, tm = false;
+/* ============================================================
+   移动端跟手拖拽：横向翻页 / 下滑关闭
+   载体是 #stage 而不是 #flipper —— 后者的 transform 被翻面动画占着。
+   ============================================================ */
+const stage = $("#stage");
+const REDUCED = matchMedia("(prefers-reduced-motion:reduce)");
+let tx = 0, ty = 0, t0 = 0, tm = false, axis = "", swiped = false, animating = false;
+
+function setStage(x, y, op){
+  stage.style.transform = x || y ? `translate3d(${x}px,${y}px,0)` : "";
+  stage.style.opacity = op == null ? "" : op;
+}
+function resetStage(){
+  stage.classList.remove("dragging", "snapout");
+  setStage(0, 0, null);
+}
+
 box.addEventListener("touchstart", e => {
-  if (e.touches.length !== 1) return;
-  if (e.target.closest(".film")) { tm = false; return; }   // 胶片条自己横滚
-  tx = e.touches[0].clientX; ty = e.touches[0].clientY; tm = true;
+  tm = false; axis = "";
+  if (animating || e.touches.length !== 1) return;
+  // 胶片条自己横滚，控件自己响应点击
+  if (e.target.closest(".film,.nav,.close")) return;
+  // 背面正文已经滚下去了：这一整段手势让给原生滚动，别把「读正文」判成「关灯箱」
+  if (flipped && back.scrollTop > 0) return;
+  tx = e.touches[0].clientX; ty = e.touches[0].clientY; t0 = e.timeStamp;
+  tm = true;
 }, { passive:true });
+
+box.addEventListener("touchmove", e => {
+  if (!tm || e.touches.length !== 1) return;
+  const dx = e.touches[0].clientX - tx, dy = e.touches[0].clientY - ty;
+
+  if (!axis){
+    if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) axis = "x";
+    else if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) axis = "y";
+    else return;
+    swiped = true;
+    stage.classList.add("dragging");
+  }
+
+  if (axis === "x"){
+    e.preventDefault();
+    // 到头了给阻尼，让「翻不动」这件事在手上就能感觉到
+    const atEdge = (cur === 0 && dx > 0) || (cur === VIEW.length - 1 && dx < 0);
+    const off = atEdge ? dx * .32 : dx;
+    setStage(off, 0, 1 - Math.min(.35, Math.abs(off) / 900));
+  } else {
+    // 只做下滑关闭；向上滑不接管，留给页面/正文
+    if (dy <= 0){ setStage(0, 0, null); return; }
+    e.preventDefault();
+    setStage(0, dy, Math.max(.25, 1 - dy / 400));
+  }
+}, { passive:false });
+
 box.addEventListener("touchend", e => {
-  if (!tm) return; tm = false;
+  if (!tm) return;
+  tm = false;
+  const wasAxis = axis; axis = "";
+  setTimeout(() => { swiped = false; }, 0);   // click 在此之前派发，用它挡住拖完的误翻面
+  if (!wasAxis){ resetStage(); return; }
+
   const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
-  if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)*1.6) step(dx < 0 ? 1 : -1);
-  else if (dy > 90 && Math.abs(dy) > Math.abs(dx)*1.6) close();
+  const dt = Math.max(1, e.timeStamp - t0);
+
+  if (wasAxis === "y"){
+    if (dy > 110 || (dy > 40 && dy / dt > .5)) close();
+    else resetStage();
+    return;
+  }
+
+  const commit = Math.abs(dx) > Math.min(90, stage.offsetWidth * .22)
+              || Math.abs(dx) / dt > .45;
+  const d = dx < 0 ? 1 : -1;
+  const n = cur + d;
+  if (!commit || n < 0 || n >= VIEW.length){ resetStage(); return; }
+
+  if (REDUCED.matches){ resetStage(); open(n); return; }
+  slideTo(n, d);
 }, { passive:true });
+
+/* 推出 → 换图 → 从反方向推入。
+   animating 只在「推出」这一小段上锁；推入是可打断的，
+   否则连续快滑会被吞掉后面几下。 */
+function slideTo(n, d){
+  animating = true;
+  const w = innerWidth;
+  stage.classList.remove("dragging");
+  stage.classList.add("snapout");
+  setStage(-d * w * .6, 0, 0);
+
+  const finish = () => {
+    stage.removeEventListener("transitionend", finish);
+    clearTimeout(guard);
+    open(n);
+    // 瞬移到反侧，强制回流，再滑回原位
+    stage.classList.remove("snapout");
+    stage.classList.add("dragging");
+    setStage(d * w * .45, 0, 0);
+    void stage.offsetWidth;
+    stage.classList.remove("dragging");
+    setStage(0, 0, null);
+    animating = false;          // 推入过程允许被下一次手势接管
+  };
+  // transitionend 偶尔不来（标签页切走、动画被打断），兜一个定时器
+  const guard = setTimeout(finish, 240);
+  stage.addEventListener("transitionend", finish);
+}
 
 /* ============================================================
    工具
