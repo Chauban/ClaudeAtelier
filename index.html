@@ -251,6 +251,13 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
   position:sticky;top:0;z-index:40;
   display:flex;flex-wrap:wrap;gap:10px;align-items:center;
   padding:12px 0;margin-bottom:26px;
+}
+/* 底色必须整条出血到视口两侧。工具栏是 .wrap 的孩子，底色只铺内容宽的话，
+   左右两条 --pad 会继续露出下面的 #ambient 与颗粒层（它们是 fixed 满屏的），
+   于是滚动时工具栏两端各留一道竖直接缝——就是那两条竖线。 */
+.toolbar::before{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  top:0;bottom:0;left:calc(50% - 50vw);right:calc(50% - 50vw);
   background:var(--toolbar-fade);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
 }
@@ -288,7 +295,7 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 
 /* ============ 移动端筛选：底部弹层 ============
    chip 条一旦变成 overflow-x:auto，绝对定位的 .dd-panel 就会被裁掉；
-   而 .toolbar 的 backdrop-filter 会给 fixed 后代造包含块，改 fixed 也救不回来。
+   而工具栏那层 backdrop-filter 会给 fixed 后代造包含块，改 fixed 也救不回来。
    所以面板元素运行时整个搬到这个 body 级宿主里，关闭时再搬回原 .dd。 */
 #sheet{position:fixed;inset:0;z-index:80;display:none}
 #sheet.on{display:block}
@@ -528,7 +535,7 @@ footer a:hover{color:var(--accent-text)}
 @media (max-width:700px){
   .toolbar{gap:8px}
   /* sticky + backdrop-filter 在安卓上是已知的滚动掉帧源；换成更实的底色 */
-  .toolbar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
+  .toolbar::before{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
   .btn{padding:7px 12px;font-size:12.5px}
   /* chip 永不换行：整条横滑，两端出血到视口边缘，滑到底不像被切断 */
   .chips{
