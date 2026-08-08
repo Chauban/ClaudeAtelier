@@ -1,7 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **48** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **49** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0049 · 3D 多层纸雕浮雕 · 英文
+
+<img src="web/2026-08/NO.0049_2026-08-08_S42-多层纸雕浮雕_EN.webp" width="320">
+
+> The colour was never in the crystals. It was in the space between them.（颜色从来不在晶片本身，而在它们彼此留出的距离里。）
+
+**海洋生物** — A male sea sapphire (Sapphirina, a 2 mm copepod) stacks hexagonal guanine crystal plates under its skin — about 1.5 micrometres wide and 80 nanometres thick — separated by thin layers of cytoplasm. The hue is set by the spacing of those gaps, not by the crystals; and when light strikes at roughly 45 degrees the reflection shifts out of visible light into the ultraviolet, so the animal blinks out of existence in mid-swim.（雄性海蓝宝水蚤皮下叠着一层层六边形鸟嘌呤晶片，约1.5微米宽、80纳米厚，之间夹着细胞质。决定颜色的是夹层间距而非晶片本身；当光以约45度射入，反射移出可见光进入紫外，这只小虫便在游动中当场消失。）
+
+`2026-08-08 20:09` ｜ [原图](Cards/2026-08/NO.0049_2026-08-08_S42-多层纸雕浮雕_EN.png) ｜ [文字](text/2026-08/NO.0049_2026-08-08_S42-多层纸雕浮雕_EN.md)
 
 ---
 
