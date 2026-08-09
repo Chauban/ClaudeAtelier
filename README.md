@@ -1,7 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **51** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **52** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0052 · 装饰艺术 Art Deco · 德文
+
+<img src="web/2026-08/NO.0052_2026-08-09_S15-装饰艺术_DE.webp" width="320">
+
+> Jede Sprache ist ein Fenster. Wer nur eines besitzt, hält die Aussicht für die Welt.（每一种语言都是一扇窗。只有一扇窗的人，会把窗外的景色当成整个世界。）
+
+**语言与文字** — Auf Mornington Island in Nordaustralien lernten die Lardil-Männer in der zweiten Initiationsstufe ein Nebenregister namens Damin: dieselbe Grammatik wie ihre Muttersprache, aber nur rund 150 Wortwurzeln — und damit ließ sich alles sagen. Damin ist das einzige bekannte Lautsystem außerhalb Afrikas mit bedeutungsunterscheidenden Schnalzlauten. Missionare verboten die Zeremonie; die letzte fand in den 1950er Jahren statt, die letzten fließenden Sprecher starben in den 1980ern.（澳大利亚北部莫宁顿岛的拉尔迪尔族男子，在第二阶段成年礼上要学一套名为 Damin 的附属语域：语法与母语相同，词根却只有约一百五十个，却足以说出一切。它是已知非洲以外唯一用啧音辨义的语音系统。传教士禁止了那场仪式，最后一次约在一九五〇年代，最后几位熟练使用者于一九八〇年代离世。）
+
+`2026-08-09 12:09` ｜ [原图](Cards/2026-08/NO.0052_2026-08-09_S15-装饰艺术_DE.png) ｜ [文字](text/2026-08/NO.0052_2026-08-09_S15-装饰艺术_DE.md)
 
 ---
 
@@ -614,5 +626,3 @@
 **音乐与声音** — 1860年 Édouard-Léon Scott de Martinville 用 phonautographe 把《Au clair de la lune》刻在烟熏纸上，比爱迪生早17年，但机器不能回放，直到2008年扫描墨痕才第一次被听见。
 
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
-
----
