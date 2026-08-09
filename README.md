@@ -1,7 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **54** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **55** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0055 · 星图天文星座 · 英文
+
+<img src="web/2026-08/NO.0055_2026-08-10_S21-星图星座_EN.webp" width="320">
+
+> “They set out to find where the satellite was, and ended up finding where they stood.” Some questions only answer you once you turn them upside down.（他们本想算出卫星在哪里，最后算出了自己站在哪里。有些问题，要倒过来问，才肯回答你。）
+
+**科技与发明史** — 1957年10月，美国马里兰州约翰斯·霍普金斯大学应用物理实验室的两位年轻物理学家 William Guier 与 George Weiffenbach，录下了斯普特尼克1号的无线电信号，发现仅凭它一次过顶时的多普勒频移，就足以推算出整条轨道。几个月后，研究部主任 Frank McClure 把问题倒过来问：既然算得出卫星在哪里，那能不能反过来算出自己在哪里？这一问催生了「子午仪」（Transit）——1964年投入使用的世界第一套卫星导航系统，也就是 GPS 的祖父。
+
+`2026-08-10 00:10` ｜ [原图](Cards/2026-08/NO.0055_2026-08-10_S21-星图星座_EN.png) ｜ [文字](text/2026-08/NO.0055_2026-08-10_S21-星图星座_EN.md)
 
 ---
 
