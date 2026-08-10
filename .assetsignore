@@ -1,6 +1,7 @@
 # 不要上传成静态资源。
 # 注意：Workers 不像 Pages 会自动排除 .git / node_modules，必须手写。
 **/.git
+**/.github
 **/node_modules
 **/.DS_Store
 **/Thumbs.db
