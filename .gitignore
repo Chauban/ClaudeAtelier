@@ -2,6 +2,10 @@
 Cards/*/
 !Cards/cards-index.csv
 
+# 给 AI 看的文档只留本地，不公开到网站和仓库
+HANDOFF-项目交接.md
+CLAUDE.md
+
 _recovered/
 thumbs/
 *.tmp
