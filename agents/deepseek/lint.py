@@ -128,6 +128,27 @@ def run(sf, strict=True, known_text=None):
                             (b.text or "")[:24], b.role, share, c2, cr))
                     break
 
+        # 背景是否干净。前面那条查的是「有没有与文字亮度接近的色块」，
+        # 对付的是朱印压字那种。但装饰未必与文字亮度接近 —— 孟菲斯那张卡
+        # 的波浪线、虚线、色块颜色鲜艳，对比度读数完全正常，却实实在在
+        # 横穿在金句上。判据不该是对比度，而是**背景够不够干净**：
+        # 文字底下本来应该是一片匀净的底色。
+        if len(bg_px) >= 60:
+            dom = np.median(bg_px, axis=0)
+            busy = float((np.abs(bg_px.astype(np.int16) - dom.astype(np.int16))
+                          .sum(axis=1) > 40).mean())
+            # 阈值 15% 是量出来的，不是拍的：
+            #   干净底 + 噪点            0.5%
+            #   蓝图（网格+渐变+图框）    最高 3.8%   ← 正当纹理的上限
+            #   装饰穿过文字             35.4%       ← 真正的干扰
+            # 正当背景最花不过 4%，取 15% 两边都留足余量。
+            if busy > 0.15:
+                warn_local.append(
+                    "文字压在花哨的背景上：{!r}（role={}）框内有 {:.0%} 的背景"
+                    "偏离底色 —— 装饰元素穿过了文字。把装饰挪开，"
+                    "或在文字下方垫一块干净的底色。".format(
+                        (b.text or "")[:24], b.role, busy))
+
         if cr < need:
             problems.append(
                 "对比度不足：{!r}（role={} size={}）\n"
