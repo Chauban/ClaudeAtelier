@@ -34,7 +34,79 @@ def _key_tokens(text):
     return toks
 
 
-def check(payload, min_claims=1, need_https=True):
+
+# 语言 -> 该用哪种字形。粤语、港台繁体都写繁体（Claude 一直是这么做的）。
+HANT_LANGS = {"ZH-TW", "ZH-HK", "YUE"}
+HANS_LANGS = {"ZH"}
+
+# 一简对多繁、转换要看语境的字。逐字比对时一律跳过，否则会把正确的
+# 繁体文本误判成简体（既有的 NO.18 就是被「厘里托」误伤的）。
+AMBIGUOUS = set(
+    "里厘托后干发系复志表只云松面板谷丑征曲舍术台布才斗范姜卷累帘折冲尽借"
+    "当同向恶几家据尔别刮划回汇伙价佣朴曝签苏坛叶郁御愿沄准致制种周注"
+)
+
+
+def check_orthography(text, lang_code):
+    """繁简是否与卡片语言相符。返回问题描述，没问题返回 None。
+
+    实测踩到：第一张粤语卡，标题和年表是繁体，正文与金句却是简体 ——
+    「葡撻唔係澳門土產」配「葡挞其实唔系澳门土产」，同一张卡两套字形。
+    章程的语言表只写「4 粤语口语」，没写该用哪种字形，Claude 靠常识
+    推断出繁体，DeepSeek 没有。靠提示词补一句不如直接判定。
+
+    不能「有一处差异就判错」：像「葡萄牙里斯本」的「里」，转繁会变成
+    「裡」，但那是误转。所以看差异的量 —— 真正的简体文本会大面积改变。
+    """
+    try:
+        import zhconv
+    except ImportError:
+        return None                     # 没装就不查，不阻断
+    t = (text or "").strip()
+    cjk = [c for c in t if "一" <= c <= "鿿"]
+    if len(cjk) < 8:
+        return None
+
+    def diff_chars(target):
+        conv = zhconv.convert(t, target)
+        if len(conv) != len(t):
+            return []                   # 长度变了就没法逐字比，放过
+        out = []
+        for a, b in zip(t, conv):
+            if a == b:
+                continue
+            # 只看汉字：zhconv 会把「」转成“”，那不是繁简差异（对既有的
+            # NO.41 就是这么误报了 10 处）
+            if not ("一" <= a <= "鿿" and "一" <= b <= "鿿"):
+                continue
+            # 一简对多繁、要看语境的字，一律放过 —— 「葡萄牙里斯本」的「里」
+            # 会被转成「裡」，是误转不是错字（NO.18 因此误报）
+            if a in AMBIGUOUS:
+                continue
+            out.append(a)
+        return out
+
+    def hit(d):
+        """3 个以上一定是；2 个但占比高也算 —— 短金句错两个字就很明显了。
+        单个差异一律放过：那多半是 里/裡 这类误转。"""
+        n, ratio = len(d), len(d) / float(len(cjk))
+        return n >= 3 or (n >= 2 and ratio >= 0.08)
+
+    if lang_code in HANT_LANGS:
+        d = diff_chars("zh-hant")
+        if hit(d):
+            return ("{} 的卡片要用繁体字，但这段文字里有 {} 处简体字形"
+                    "（{}…）。请整段改写成繁体。".format(
+                        lang_code, len(d), "".join(d[:8])))
+    elif lang_code in HANS_LANGS:
+        d = diff_chars("zh-hans")
+        if hit(d):
+            return ("简体中文的卡片里出现了 {} 处繁体字形（{}…），"
+                    "请整段改写成简体。".format(len(d), "".join(d[:8])))
+    return None
+
+
+def check(payload, min_claims=1, need_https=True, lang_code=None):
     """校验 research 交出来的结构。通过返回报告 dict，不通过抛 VerifyError。"""
     problems, report = [], {"claims": [], "fetched": {}}
 
@@ -120,6 +192,11 @@ def check(payload, min_claims=1, need_https=True):
             problems.append("{} 里不该出现代码围栏或链接".format(field))
         if any(ord(ch) < 9 or (13 < ord(ch) < 32) for ch in v):
             problems.append("{} 里含控制字符".format(field))
+        # 繁简与卡片语言是否相符
+        if lang_code:
+            o = check_orthography(v, lang_code)
+            if o:
+                problems.append("{}：{}".format(field, o))
 
     if problems:
         raise VerifyError("核实未通过：\n  - " + "\n  - ".join(problems))

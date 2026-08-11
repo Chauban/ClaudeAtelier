@@ -177,7 +177,7 @@ def run(brief, verbose=True):
 
         # ---- 证据闸门
         try:
-            report = verify.check(payload)
+            report = verify.check(payload, lang_code=brief.get("LANG_CODE"))
             if verbose:
                 print("    [核实通过] {} 条断言，抓取 {} 个页面".format(
                     len(report["claims"]), len(report["fetched"])))

@@ -54,7 +54,7 @@ jobs:
 
       - name: 装依赖与字体
         run: |
-          python -m pip install --quiet pillow numpy fonttools ddgs trafilatura
+          python -m pip install --quiet pillow numpy fonttools ddgs trafilatura zhconv
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-cjk-extra \
                                       fonts-dejavu-core fonts-dejavu-extra
