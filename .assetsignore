@@ -14,6 +14,7 @@ sync.log
 # 实现细节不必公开托管。注意 prompts/ 不在此列 —— 创作章程是刻意公开的，
 # 「两个 AI 拿到的是同一份题目」这件事本身就该可查。
 tools/
+agents/
 
 # 配置文件本身
 wrangler.jsonc

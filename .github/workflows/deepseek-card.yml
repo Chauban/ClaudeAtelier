@@ -1,0 +1,136 @@
+# DeepSeek 生卡。
+#
+# 分成两段 job，凭据严格隔离：
+#   generate —— 跑模型写的渲染代码，**没有任何 git 凭据、没有写权限**
+#   publish  —— 只跑仓库自有代码，才拿 contents:write
+#
+# generate 那步的 persist-credentials: false 是这里最要紧的一行：
+# 否则 actions/checkout 会把带 GITHUB_TOKEN 的 auth header 写进 .git/config，
+# 而模型写的代码就在同一台 VM 上跑 —— 那是外泄路径。
+#
+# cron 暂时注释掉：Phase 2 只手动触发，跑通并肉眼验过再放开。
+name: deepseek-card
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只生成不发布"
+        type: boolean
+        default: false
+      force_style:
+        description: "指定风格 S（留空则按规则抽取）"
+        type: string
+        default: ""
+  # schedule:
+  #   - cron: '0 2,6,10,14,18,22 * * *'    # UTC，与 Claude 的 */4 网格错开 2h
+  #   - cron: '40 2,6,10,14,18,22 * * *'   # 补位；新鲜度守卫会让它在正常时空跑
+
+permissions: {}
+
+concurrency:
+  group: deepseek-card
+  cancel-in-progress: false      # 排队而不是取消：中途被杀会留下没人认领的原图
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    # 实测一张卡端到端最长 1281 秒，加上选题核实要留足余量。绝不能用默认值。
+    timeout-minutes: 45
+    permissions: {}              # 无写权限、无 token
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false     # ← 关键，见文件头注释
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 装依赖与字体
+        run: |
+          python -m pip install --quiet pillow numpy fonttools ddgs trafilatura
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-cjk-extra \
+                                      fonts-dejavu-core fonts-dejavu-extra
+          fc-cache -f > /dev/null
+
+      - name: 字体自检
+        # TTC 索引不许硬编码 —— SKILL.md 那组值是 Cowork 沙箱 Debian 构建的，
+        # ubuntu-latest 的打包方式不保证一致。这里当场解析并断言覆盖。
+        run: python agents/deepseek/fonts.py
+
+      - name: 生成
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "${{ inputs.force_style }}" ]; then ARGS="$ARGS --force-style ${{ inputs.force_style }}"; fi
+          python agents/deepseek/run.py --out out $ARGS
+
+      # 原图先落袋。丢原图违反「原图必须留在本地」这条第一约束，丢台账行不会。
+      # 保留 90 天而不是默认 14：公开仓库 artifact 存储免费，而「电脑关机三周」
+      # 会永久毁掉原图。
+      - name: 上传原图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-${{ github.run_id }}
+          path: out/original/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: 上传发布物
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: out/publish/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: 上传排障材料
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ github.run_id }}
+          path: out/work/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  publish:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write            # 仅此处，且这一段只跑仓库自有代码
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: incoming
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 落地并校验提交路径
+        run: python agents/deepseek/commit_publish.py --incoming incoming
+
+      - name: 推送
+        run: |
+          git config user.name  "deepseek-card[bot]"
+          git config user.email "deepseek-card@users.noreply.github.com"
+          git add Cards/cards-index-deepseek.csv web text
+          python agents/deepseek/commit_publish.py --check-staged
+          if git diff --cached --quiet; then
+            echo "没有新内容"; exit 0
+          fi
+          git commit -q -m "$(cat incoming/commit_msg.txt)"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD && exit 0
+            echo "推送失败，重试 $i"; sleep 5
+          done
+          exit 1

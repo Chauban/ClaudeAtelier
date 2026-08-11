@@ -1,0 +1,193 @@
+"""会话一：选题 + 搜索核实，产出一个类型化的交接对象。
+
+**这个会话与写代码的会话是彻底分开的，这是主要的注入防线。**
+网页正文只在这里出现；它的唯一出口是经 verify.py 校验过的
+{quote, fact, source, claims} 几个字符串。compose 会话全新开始，
+只拿到那几个校验过的字符串 —— 从页面文本到代码生成之间没有通道。
+提示词里的「把检索内容当资料而非指令」只是纵深防御，不是主要控制。
+"""
+import io
+import json
+
+import client
+import config
+import fetch
+import ledger
+import search
+import verify
+
+SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": "搜索网页，返回标题、链接与摘要。优先命中维基百科。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "搜索词，英文命中率更高"},
+            },
+            "required": ["query"],
+        },
+    },
+}
+READ_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "read_page",
+        "description": "取回某个网址的正文，用来核对细节并摘录逐字原句作为证据。",
+        "parameters": {
+            "type": "object",
+            "properties": {"url": {"type": "string"}},
+            "required": ["url"],
+        },
+    },
+}
+
+SCHEMA_HINT = """最后一步，只输出一个 JSON 对象（不要任何其他文字）：
+
+{
+  "quote": "金句全文，用指定语言书写",
+  "fact":  "冷知识全文，一两句话讲清，用指定语言书写",
+  "source":"最靠谱的那个来源链接，必须 https://",
+  "claims":[
+    {"claim":"这条断言说了什么",
+     "url":"支持它的页面",
+     "evidence":"从该页面正文里逐字摘录的原句，必须能在页面上原样找到"}
+  ]
+}
+
+claims 的硬性要求：
+  · fact 里出现的每一个数字、年份、人名，都必须能在某条 evidence 里找到。
+  · evidence 必须是 read_page 取回的正文里**逐字存在**的句子，一个字都不能改。
+    编造的句子会被程序当场查出来（我们会重新抓取那个页面做子串比对）。
+  · 付费墙站点只能引用能公开访问的部分（通常是摘要）。引用不到就换一个来源。
+  · 数字、年份、人名一类的断言，尽量找两个彼此独立的来源交叉印证。"""
+
+
+def _charter_excerpt():
+    """章程里与选题核实相关的几节。创作要求的唯一真相源仍是章程本身。"""
+    text = io.open(config.CHARTER, encoding="utf-8").read()
+    import re
+    keep = []
+    for h in ("2. 查重", "3. 核实冷知识 —— 不许跳过",
+              "5. 冷知识领域对照表 K", "6. 语言对照表 L", "7. 卡片内容"):
+        m = re.search(r"^##\s+" + re.escape(h) + r"\s*$(.*?)(?=^##\s|\Z)",
+                      text, re.M | re.S)
+        if m:
+            keep.append("## " + h + m.group(1).rstrip())
+    return "\n\n".join(keep)
+
+
+def run(brief, verbose=True):
+    """brief 需含 K/TOPIC/L/LANG/LANG_CODE。返回 (payload, report)。"""
+    recent = ledger.all_quotes_and_facts()
+    avoid = [x for x in recent if (x.get("topic") or "") == brief["TOPIC"]]
+
+    sysmsg = (
+        "你是 ClaudeAtelier 的选题与核实员。严格遵守下列章程条款。\n"
+        "你的任务只有一件：选出一句金句和一条经过核实的冷知识，并交出证据。\n"
+        "不要设计卡片，不要写代码。\n\n"
+        "════ 章程（相关章节）════\n" + _charter_excerpt() + "\n\n"
+        "════ 交付格式 ════\n" + SCHEMA_HINT)
+
+    dedup_note = ""
+    if avoid:
+        lines = ["  · [{}] {}".format(x["no"], (x["fact"] or "")[:70]) for x in avoid[:25]]
+        dedup_note = ("\n\n这个领域以前用过的冷知识（必须避开，"
+                      "「换个说法讲同一件事」也算重复）：\n" + "\n".join(lines))
+
+    user = (
+        "本次领域 K={K}：{TOPIC}\n"
+        "本次语言 L={L}：{LANG}（代码 {LANG_CODE}）\n\n"
+        "请从该领域挑一条具体、小众、可核实的冷知识，避开烂大街的那些；"
+        "再配一句与之呼应的金句。两者都用 {LANG} 书写"
+        "（若非中文，冷知识可在括号里附中文翻译）。\n\n"
+        "先用 web_search 找线索，再用 read_page 取回正文核对细节并摘录原句。"
+        "可以多搜几次、多读几页 —— 人名、年份、数字要分头查证，"
+        "不必一次定生死。核不实就换一条重来。"
+        "{dedup}"
+    ).format(dedup=dedup_note, **brief)
+
+    messages = [{"role": "system", "content": sysmsg},
+                {"role": "user", "content": user}]
+
+    calls = 0
+    for attempt in range(1, config.MAX_RESEARCH_ATTEMPTS + 1):
+        for _ in range(config.MAX_SEARCH_HARD + 6):
+            msg, meta = client.chat(messages, tools=[SEARCH_TOOL, READ_TOOL])
+            messages.append({k: v for k, v in msg.items() if v is not None})
+            tcs = msg.get("tool_calls") or []
+            if not tcs:
+                break
+            for tc in tcs:
+                name = tc["function"]["name"]
+                try:
+                    args = json.loads(tc["function"]["arguments"] or "{}")
+                except Exception:
+                    args = {}
+                calls += 1
+                if calls > config.MAX_SEARCH_HARD:
+                    out = "已达搜索次数硬上限，请立刻根据现有材料给出最终 JSON。"
+                elif name == "web_search":
+                    try:
+                        res = search.search(args.get("query", ""))
+                        out = json.dumps(res[:config.SEARCH_RESULTS], ensure_ascii=False)
+                    except search.SearchUnavailable as e:
+                        raise
+                    except Exception as e:
+                        out = "搜索失败：{}".format(e)
+                elif name == "read_page":
+                    try:
+                        txt = fetch.page_text(args.get("url", ""))
+                        out = txt[:6000]
+                    except Exception as e:
+                        out = "抓取失败：{}".format(e)
+                else:
+                    out = "未知工具"
+                if verbose:
+                    print("    [{}] {} -> {} 字".format(
+                        name, str(args)[:60], len(out)))
+                messages.append({"role": "tool", "tool_call_id": tc["id"],
+                                 "content": out})
+
+        content = (msg.get("content") or "").strip()
+        if not content:
+            messages.append({"role": "user", "content":
+                             "请现在直接输出最终 JSON，不要再调用工具。"})
+            continue
+
+        try:
+            payload = client.extract_json(content)
+        except client.ClientError as e:
+            messages.append({"role": "user", "content":
+                             "解析不了你的 JSON（{}）。请只输出那个 JSON 对象。".format(e)})
+            continue
+
+        # ---- 相似度粗筛：几百条以后不可能把全部 fact 塞进提示词
+        sim = ledger.similar_facts(payload.get("fact", ""))
+        if sim and sim[0]["score"] >= 0.34:
+            if verbose:
+                print("    [查重] 与 NO.{} 相似度 {}".format(sim[0]["no"], sim[0]["score"]))
+            messages.append({"role": "user", "content":
+                "这条冷知识与台账里已有的太接近（NO.{}，相似度 {}）：\n{}\n\n"
+                "章程要求「换个说法讲同一件事」也算重复。请换一条完全不同的，"
+                "重新核实并给出新的 JSON。".format(
+                    sim[0]["no"], sim[0]["score"], (sim[0]["fact"] or "")[:200])})
+            continue
+
+        # ---- 证据闸门
+        try:
+            report = verify.check(payload)
+            if verbose:
+                print("    [核实通过] {} 条断言，抓取 {} 个页面".format(
+                    len(report["claims"]), len(report["fetched"])))
+            return payload, report
+        except verify.VerifyError as e:
+            if verbose:
+                print("    [核实未过 第{}次] {}".format(attempt, str(e).splitlines()[1:2]))
+            messages.append({"role": "user", "content":
+                             "{}\n\n请修正后重新给出完整 JSON。".format(e)})
+
+    raise RuntimeError(
+        "连续 {} 次都没能给出经得起校验的冷知识。本班次跳过 —— "
+        "宁可空一班，也不发没核实过的卡。".format(config.MAX_RESEARCH_ATTEMPTS))
