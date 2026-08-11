@@ -25,6 +25,7 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+AI_DIR = "deepseekv4flash"     # 与 agents/deepseek/config.py 的 AI_DIR 一致
 REPO = "Chauban/ClaudeAtelier"
 WORKFLOW = "deepseek-card.yml"
 STATE = os.path.join(ROOT, ".ds-fetch-state.json")
@@ -144,7 +145,7 @@ def place(src):
     base = os.path.basename(src)
     m = re.search(r"_(\d{4})-(\d{2})-\d{2}_", base)
     ym = "{}-{}".format(m.group(1), m.group(2)) if m else time.strftime("%Y-%m")
-    outdir = os.path.join(ROOT, "Cards", ym)
+    outdir = os.path.join(ROOT, AI_DIR, "Cards", ym)
     os.makedirs(outdir, exist_ok=True)
     dst = os.path.join(outdir, base)
     if os.path.exists(dst):

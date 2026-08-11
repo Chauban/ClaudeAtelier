@@ -697,10 +697,13 @@ const LEDGERS = [
      Claude 那份是项目最早的 12 列 schema，没有这一列，而它跑在 Cowork 的
      定时任务里、用的是 Opus 5 —— 由项目所有者告知，不是推断出来的。
      台账行里若带了 model，以行内的为准。 */
+  /* base：该 AI 的顶层目录。Claude 是在位者，留在根目录（base 为空）；
+     新来的各占一个自己的目录，内部镜像 Cards/web/text 结构。
+     台账的 filename 列一律是 {YYYY-MM}/xxx.png，拼上 base 才是完整路径。 */
   { ai:"claude",   label:"Claude",   prefix:"NO.", model:"claude-opus-5",
-    url:"Cards/cards-index.csv" },
+    base:"",                  url:"Cards/cards-index.csv" },
   { ai:"deepseek", label:"DeepSeek", prefix:"NO.", model:"",
-    url:"Cards/cards-index-deepseek.csv" },
+    base:"deepseekv4flash/",  url:"deepseekv4flash/Cards/cards-index.csv" },
 ];
 const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
@@ -875,10 +878,17 @@ function build(payloads){
       const g = k => (r[col[k]] || "").trim();
       const file = g("filename");
       if (!g("no") || !file) return;
-      const webRel = WEB_DIR + file.replace(/\.png$/i, ".webp");
+      const webRel = P.base + WEB_DIR + file.replace(/\.png$/i, ".webp");
+      const noPad = P.prefix + String(g("no")).padStart(4, "0");
       CARDS.push({
         no: g("no"),
-        noPad: P.prefix + String(g("no")).padStart(4, "0"),
+        noPad,
+        /* 各家自己从 NO.0001 数起，所以编号在全站不唯一 ——
+           内部一律用 (ai, no) 这个复合键来认卡。
+           深链：Claude 保持裸编号（所有历史链接继续有效），
+           其他家带上 ai 前缀，例如 #deepseek/NO.0001。 */
+        uid: P.ai + ":" + g("no"),
+        hashId: (P.ai === "claude" ? "" : P.ai + "/") + noPad,
         ai: g("ai") || P.ai,
         aiLabel: P.label,
         model: g("model") || P.model || "",
@@ -891,7 +901,7 @@ function build(payloads){
         thumb: (THUMB ? THUMB.replace(/\/$/, "") + "/" : "") + encPath(webRel),
         webRaw: webRel,
         origin: ORIGIN_BASE ? ORIGIN_BASE + encPath(file) : "",
-        txt: encPath("text/" + file.replace(/\.png$/i, ".md")),
+        txt: encPath(P.base + "text/" + file.replace(/\.png$/i, ".md")),
         quote: g("quote"), fact: g("fact"), source: g("source"),
         ratio: 0.6, color: "#3a3a42", loaded: false
       });
@@ -933,8 +943,9 @@ function build(payloads){
       /* 先按完整编号（NO.0058 / DS.0001）匹配。
          裸数字那条旧回退只对 Claude 生效 —— 否则 #42 在两个系列里都成立，
          成了歧义。历史链接一律是 Claude 的，所以这样既保兼容又不含混。 */
-      const i = VIEW.findIndex(c => c.noPad === h
-        || c.no === h.replace(/^NO\.?0*/i,""));
+      const i = VIEW.findIndex(c => c.hashId === h
+        || (c.ai === "claude"
+            && (c.noPad === h || c.no === h.replace(/^NO\.?0*/i,""))));
       if (i >= 0) setTimeout(() => open(i), 260);
     }
   }
@@ -1354,7 +1365,7 @@ function open(i){
          <a href="${c.web}" download>下载压缩版</a>
          ${c.origin ? `<span class="sep">·</span><a href="${c.origin}" download>下载原图</a>` : ``}
          <span class="sep">·</span>
-         <a href="#${c.noPad}" id="shareLink">复制链接</a>
+         <a href="#${c.hashId}" id="shareLink">复制链接</a>
        </div>
      </div>`;
 
@@ -1362,7 +1373,7 @@ function open(i){
   if (navigator.share) sl.textContent = "分享";
   sl.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
-    const url = location.origin + location.pathname + "#" + c.noPad;
+    const url = location.origin + location.pathname + "#" + c.hashId;
     const copy = () =>
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
         .then(() => {
@@ -1370,7 +1381,7 @@ function open(i){
           sl.textContent = "已复制 ✓";
           setTimeout(() => { sl.textContent = was; }, 1600);
         })
-        .catch(() => { location.hash = c.noPad; });
+        .catch(() => { location.hash = c.hashId; });
 
     if (navigator.share){
       navigator.share({ title: c.noPad + " · " + c.style, text: c.quote, url })
@@ -1394,15 +1405,16 @@ function open(i){
 
   /* 首开压一条历史，安卓返回键先关灯箱而不是直接离站；
      灯箱里翻页只 replace，别让翻 40 张压 40 条历史。 */
-  if (firstOpen) history.pushState({ box:1 }, "", "#" + c.noPad);
-  else history.replaceState({ box:1 }, "", "#" + c.noPad);
+  if (firstOpen) history.pushState({ box:1 }, "", "#" + c.hashId);
+  else history.replaceState({ box:1 }, "", "#" + c.hashId);
 }
 let lastFocus = null;
 
 /* 灯箱底部胶片条：当前筛选结果的横向缩略图，点一下直接跳 */
 let filmToken = "";
 function viewToken(){
-  return VIEW.length + ":" + (VIEW[0] ? VIEW[0].noPad : "") + ":" + (VIEW.length ? VIEW[VIEW.length-1].noPad : "");
+  // 用 uid：各家编号会重号，拿 noPad 当键会漏刷胶片条
+  return VIEW.length + ":" + (VIEW[0] ? VIEW[0].uid : "") + ":" + (VIEW.length ? VIEW[VIEW.length-1].uid : "");
 }
 function renderFilm(){
   film.innerHTML = "";

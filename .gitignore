@@ -2,6 +2,10 @@
 Cards/*/
 !Cards/cards-index.csv
 
+# 各模型自己目录下的原图同理（deepseekv4flash/Cards/2026-08/ 之类）
+*/Cards/*/
+!*/Cards/cards-index.csv
+
 # 给 AI 看的文档只留本地，不公开到网站和仓库
 HANDOFF-项目交接.md
 CLAUDE.md

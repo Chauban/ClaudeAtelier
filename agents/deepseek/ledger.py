@@ -1,21 +1,15 @@
-"""台账：读取合并全部台账、发号、抽风格、算 K/L、查重、追加行。
+"""台账：发号、抽风格、算 K/L、查重、追加行。
 
-两条要点：
+**每家 AI 完全自理：发号、查重、风格轮换，一律只读自己那份台账。**
 
-1. **发号跨全部台账**（全站统一连号 NO.xxxx），但**不扫磁盘**。
-   卡面用统一前缀、两家共用一条序列，所以只读自己那份必然重号。
-   不扫磁盘是因为 runner 无状态：本地 Cards/ 里什么都没有（原图被
-   .gitignore 排除，也不在 checkout 里）。Claude 那条「max(台账, 磁盘)+1」
-   存在的理由是它把 PNG 写进持久文件夹又从那里发号，渲染完就崩会留下
-   无人认领的编号；这边崩了什么都不留，原图只在 lint 通过后才上传。
+谁也不用知道谁 —— 让在位的 Claude 去依赖新来者的文件，是拿它的稳定
+换整洁，不划算；反过来让新来的去读别人的，也只是把耦合换个方向。
+每个模型是一个独立的展区，各自从 NO.0001 起号、各自保证自己不重复。
 
-2. **风格排除窗口看全部台账**，不只看自己的。
-   规则存在的目的是「别让观众连着看到同一种长相」，而观众看到的是合并后
-   按时间排序的一条流。所以窗口必须是全局的，再并上自己最近 15 条
-   （自己的永远是最新已知的，不受推送延迟影响）。
+由此接受的代价（项目所有者已确认）：合并展示的那面墙上，偶尔可能
+连着出现同一种风格，或同一条冷知识被两家分别讲过。
 """
 import csv
-import glob
 import io
 import os
 import random
@@ -46,13 +40,14 @@ def _read(path):
 
 
 def load_all():
-    """全部台账的行，按 datetime 升序。每行带 _ledger 标明来自哪一份。"""
-    rows = []
-    for p in sorted(glob.glob(os.path.join(config.CARDS_DIR, "cards-index*.csv"))):
-        tag = os.path.basename(p)
-        for r in _read(p):
-            r["_ledger"] = tag
-            rows.append(r)
+    """本 AI 自己台账的全部行，按 datetime 升序。
+
+    名字里的 all 指「这个展区的全部卡片」，不是「全站」——
+    各家自理，谁也不读谁的。
+    """
+    rows = _read(config.LEDGER)
+    for r in rows:
+        r["_ledger"] = config.AI_KEY
     rows.sort(key=lambda r: (r.get("datetime") or ""))
     return rows
 
@@ -62,18 +57,17 @@ def load_own():
 
 
 def next_no():
-    """全站统一连号：跨**全部**台账取最大值 + 1。
+    """各家自己从 NO.0001 数起。
 
-    不能只看自己那份 —— 卡面用统一的 NO. 前缀，两家共用一条序列，
-    只读自己的台账必然发出重号。
+    不读别人的台账：两家的编号在各自的展区里各有意义，
+    合并展示时由前端用 (ai, no) 作复合标识来区分。
 
-    为什么不像 Claude 那样再扫一遍磁盘：runner 无状态，本地 Cards/ 里
-    什么都没有（原图被 .gitignore 排除，也不在 checkout 里）。这边的
-    正确性靠「读全部台账」保证，而 Claude 那边的磁盘扫描此后会连
-    DeepSeek 落到本地的原图一起看见（文件名同为 NO.*），正好互为补充。
+    也不扫磁盘（Claude 那条 max(台账, 磁盘)+1 是为了接住「渲染完就崩、
+    没来得及写台账」的孤儿编号）：runner 无状态，崩了什么都不留，
+    原图只在 lint 通过后才作为 artifact 上传，那个危险这里不存在。
     """
-    nos = [int(r["no"]) for r in load_all() if str(r.get("no", "")).isdigit()]
-    return max(nos, default=0) + 1
+    own = load_own()
+    return max([int(r["no"]) for r in own if str(r["no"]).isdigit()], default=0) + 1
 
 
 def serial(no):
@@ -84,12 +78,10 @@ def pick_style(rng=None):
     """排除最近用过的风格后随机抽一个（章程第 1 节）。返回 (S, 名称, 候选数)。"""
     import tables
     rng = rng or random.Random()
-    allr = load_all()
-    recent = [r.get("S") for r in allr[-config.STYLE_EXCLUDE_WINDOW:]]
-    mine = [r.get("S") for r in load_own()[-config.STYLE_EXCLUDE_WINDOW:]]
-    used = {int(s) for s in recent + mine if str(s).strip().isdigit()}
+    recent = [r.get("S") for r in load_all()[-config.STYLE_EXCLUDE_WINDOW:]]
+    used = {int(s) for s in recent if str(s).strip().isdigit()}
     pool = [s for s in range(1, 48) if s not in used]
-    if not pool:                       # 理论上不可能（47 > 15+15），兜底
+    if not pool:                       # 理论上不可能（47 > 15），兜底
         pool = list(range(1, 48))
     s = rng.choice(pool)
     return s, tables.style(s), len(pool)

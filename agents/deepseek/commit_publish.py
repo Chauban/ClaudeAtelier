@@ -67,9 +67,10 @@ def main():
             row = json.load(io.open(os.path.join(a.incoming, "row.json"),
                                     encoding="utf-8"))
             rel = row["filename"]
-            expected = ["Cards/" + config.LEDGER_NAME,
-                        "web/" + rel.replace(".png", ".webp"),
-                        "text/" + rel.replace(".png", ".md")]
+            b = config.AI_DIR + "/"
+            expected = [b + "Cards/" + config.LEDGER_NAME,
+                        b + "web/" + rel.replace(".png", ".webp"),
+                        b + "text/" + rel.replace(".png", ".md")]
         paths = publish.check_commit_allowlist(expected=expected)
         print("暂存区 {} 条路径，与本次应写的完全一致：".format(len(paths)))
         for p in paths:

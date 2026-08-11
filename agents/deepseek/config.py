@@ -24,8 +24,16 @@ SEARCH_SPACING = 2.0         # DDG 调用间隔秒数，避免被限流
 # ---------------------------------------------------------------- 身份
 AI_KEY = "deepseek"
 AI_LABEL = "DeepSeek"
-SERIAL_PREFIX = "NO."     # 全站统一连号：卡面上看不出是哪家做的，「谁做的」只在背面和筛选里
-LEDGER_NAME = "cards-index-deepseek.csv"
+
+# 每家一个顶层目录，内部镜像根目录的 Cards/web/text 结构。
+# Claude 是在位者，留在根目录不动（AI_DIR 相当于 ""）；新来的一律进自己的目录。
+AI_DIR = "deepseekv4flash"
+
+# 卡面用与 Claude 相同的书写格式，但**各家自己数自己的**，从 NO.0001 起。
+# 发号不需要读别人的台账 —— 两家的编号在各自的收藏里有意义，
+# 合并展示时由前端用 (ai, no) 作复合标识来区分。
+SERIAL_PREFIX = "NO."
+LEDGER_NAME = "cards-index.csv"
 
 # 台账列。前 12 列与 Claude 台账完全一致，ai/model 追加在末尾 ——
 # index.html 逐份台账从各自表头建列映射，多出来的列不会影响它。
@@ -40,10 +48,14 @@ TZ_OFFSET_HOURS = 8
 # ---------------------------------------------------------------- 路径
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CHARTER = os.path.join(ROOT, "prompts", "card-charter.md")
-CARDS_DIR = os.path.join(ROOT, "Cards")
-WEB_DIR = os.path.join(ROOT, "web")
-TEXT_DIR = os.path.join(ROOT, "text")
+
+# 本 AI 自己的地盘
+BASE = os.path.join(ROOT, AI_DIR)
+CARDS_DIR = os.path.join(BASE, "Cards")
+WEB_DIR = os.path.join(BASE, "web")
+TEXT_DIR = os.path.join(BASE, "text")
 LEDGER = os.path.join(CARDS_DIR, LEDGER_NAME)
+
 
 # ---------------------------------------------------------------- 规则
 STYLE_EXCLUDE_WINDOW = 15    # 排除最近 N 条用过的风格（章程第 1 节）
