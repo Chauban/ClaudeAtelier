@@ -8,7 +8,7 @@
 # 否则 actions/checkout 会把带 GITHUB_TOKEN 的 auth header 写进 .git/config，
 # 而模型写的代码就在同一台 VM 上跑 —— 那是外泄路径。
 #
-# cron 暂时注释掉：Phase 2 只手动触发，跑通并肉眼验过再放开。
+# 失败会开 issue 告警（见文件末尾的 notify）—— 这个项目的教训是失败无声。
 name: deepseek-card
 
 on:
@@ -130,6 +130,7 @@ jobs:
         run: python agents/deepseek/commit_publish.py --incoming incoming
 
       - name: 推送
+        id: push
         run: |
           git config user.name  "deepseek-card[bot]"
           git config user.email "deepseek-card@users.noreply.github.com"
@@ -144,3 +145,40 @@ jobs:
             echo "推送失败，重试 $i"; sleep 5
           done
           exit 1
+
+  # 失败告警。没有这一段，DeepSeek 那边红了只会体现在 Actions 页面上，
+  # 而这个项目的历史教训恰恰是「失败是无声的」—— 2026-08-05 和 08-08
+  # 两次卡片积压，都是等人发现网站不更新才知道的。
+  # issues:write 只给这一段，且它不执行任何模型产物。
+  notify:
+    needs: [generate, publish]
+    if: always() && (needs.generate.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: 开或更新告警 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          G: ${{ needs.generate.result }}
+          P: ${{ needs.publish.result }}
+        run: |
+          TITLE="deepseek-card 运行失败"
+          BODY="$(date -u '+%Y-%m-%d %H:%M UTC')  generate=$G  publish=$P
+          $RUN_URL
+
+          排障提示：generate 失败多半是选题核实反复不过、渲染轮次耗尽、
+          或搜索被限流（见 out/work 排障 artifact）；publish 失败多半是
+          提交路径白名单不匹配或推送冲突。"
+          NUM=$(gh issue list --repo "$REPO" --search "$TITLE in:title" \
+                  --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$REPO" --body "$BODY"
+            echo "已在 issue #$NUM 追加评论"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+            echo "已新建告警 issue"
+          fi

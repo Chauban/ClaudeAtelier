@@ -34,11 +34,15 @@ def freshness_ok(max_age_hours=3):
     if not last:
         return True, "台账为空，首次运行"
     try:
-        t = time.mktime(time.strptime(last, "%Y-%m-%d %H:%M"))
+        # 台账写的是 UTC+8 挂钟时间。不能用 mktime —— 它按本机时区解释，
+        # 在 UTC 的 runner 和 UTC+8 的开发机上会差 8 小时。timegm 固定按
+        # UTC 解释再减偏移，与本机时区无关。
+        import calendar
+        epoch = calendar.timegm(
+            time.strptime(last, "%Y-%m-%d %H:%M")) - config.TZ_OFFSET_HOURS * 3600
     except Exception:
         return True, "台账时间解析不了，照常运行"
-    now = time.time() + config.TZ_OFFSET_HOURS * 3600 - time.timezone
-    age = (now - t) / 3600.0
+    age = (time.time() - epoch) / 3600.0
     if age < max_age_hours:
         return False, "上一张卡是 {:.1f} 小时前（{}），还太新，跳过".format(age, last)
     return True, "上一张卡是 {:.1f} 小时前".format(age)

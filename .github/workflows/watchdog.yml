@@ -1,0 +1,88 @@
+# 产线巡检。
+#
+# 存在的理由：这个项目的失败是无声的。2026-08-05 沙箱留下的 git 锁让
+# Windows 侧连续五次同步全部失败，四张卡积压近 20 小时才被发现；08-08
+# 又因远端有未合并的提交连挂三次。两次都是等人注意到网站不更新才知道。
+#
+# 所以不监控某个环节，只看症状：每条产线最新那张卡有多旧。锁、计划任务
+# 没跑、gh 登录过期、Actions 被限流 —— 表现都一样，卡不再出现。
+#
+# 注意它**也监控 Claude 那条线**。这不违反「各产线互不依赖」：那是指生卡
+# 时不读别人的台账；巡检是只读的旁观者，不进任何生成路径。
+name: watchdog
+
+on:
+  schedule:
+    - cron: '30 1,9,17 * * *'    # UTC，每 8 小时一次（本地 09:30/17:30/01:30）
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 巡检
+        id: check
+        run: |
+          set +e
+          OUT=$(python tools/watchdog.py 2>&1)
+          CODE=$?
+          echo "$OUT"
+          {
+            echo "report<<EOF"
+            echo "$OUT"
+            echo "EOF"
+            echo "stalled=$CODE"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: 有产线停摆就开或更新 issue
+        if: steps.check.outputs.stalled != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REPORT: ${{ steps.check.outputs.report }}
+        run: |
+          TITLE="产线停摆：有卡片长时间没有更新"
+          BODY="$(date -u '+%Y-%m-%d %H:%M UTC')
+
+          \`\`\`
+          $REPORT
+          \`\`\`"
+          NUM=$(gh issue list --repo "$REPO" --search "$TITLE in:title" \
+                  --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$REPO" --body "$BODY"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+          fi
+
+      # 恢复了就把 issue 关掉，免得它一直挂着让人麻木
+      - name: 恢复正常就关闭 issue
+        if: steps.check.outputs.stalled == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          for T in "产线停摆：有卡片长时间没有更新" "deepseek-card 运行失败"; do
+            NUM=$(gh issue list --repo "$REPO" --search "$T in:title" \
+                    --state open --json number --jq '.[0].number // empty')
+            if [ -n "$NUM" ]; then
+              gh issue comment "$NUM" --repo "$REPO" \
+                --body "巡检确认各产线已恢复正常（$(date -u '+%Y-%m-%d %H:%M UTC')），自动关闭。"
+              gh issue close "$NUM" --repo "$REPO"
+              echo "已关闭 #$NUM（$T）"
+            fi
+          done
