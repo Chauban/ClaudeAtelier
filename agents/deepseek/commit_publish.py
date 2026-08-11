@@ -60,8 +60,18 @@ def main():
     ap.add_argument("--check-staged", action="store_true")
     a = ap.parse_args()
     if a.check_staged:
-        paths = publish.check_commit_allowlist()
-        print("暂存区 {} 条路径，全部通过白名单：".format(len(paths)))
+        # 统一连号后文件名也是 NO.*，靠前缀分不出两家，改成校验
+        # 「暂存区恰好等于本次该写的那三条」。incoming/row.json 是权威来源。
+        expected = None
+        if a.incoming:
+            row = json.load(io.open(os.path.join(a.incoming, "row.json"),
+                                    encoding="utf-8"))
+            rel = row["filename"]
+            expected = ["Cards/" + config.LEDGER_NAME,
+                        "web/" + rel.replace(".png", ".webp"),
+                        "text/" + rel.replace(".png", ".md")]
+        paths = publish.check_commit_allowlist(expected=expected)
+        print("暂存区 {} 条路径，与本次应写的完全一致：".format(len(paths)))
         for p in paths:
             print("  " + p)
         return 0

@@ -129,7 +129,7 @@ jobs:
           git config user.name  "deepseek-card[bot]"
           git config user.email "deepseek-card@users.noreply.github.com"
           git add Cards/cards-index-deepseek.csv web text
-          python agents/deepseek/commit_publish.py --check-staged
+          python agents/deepseek/commit_publish.py --check-staged --incoming incoming
           if git diff --cached --quiet; then
             echo "没有新内容"; exit 0
           fi

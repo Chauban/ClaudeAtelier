@@ -24,7 +24,7 @@ SEARCH_SPACING = 2.0         # DDG 调用间隔秒数，避免被限流
 # ---------------------------------------------------------------- 身份
 AI_KEY = "deepseek"
 AI_LABEL = "DeepSeek"
-SERIAL_PREFIX = "DS."
+SERIAL_PREFIX = "NO."     # 全站统一连号：卡面上看不出是哪家做的，「谁做的」只在背面和筛选里
 LEDGER_NAME = "cards-index-deepseek.csv"
 
 # 台账列。前 12 列与 Claude 台账完全一致，ai/model 追加在末尾 ——

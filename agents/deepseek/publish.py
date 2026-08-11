@@ -73,7 +73,7 @@ def append_ledger(meta):
     })
 
 
-def check_commit_allowlist(repo_root=None):
+def check_commit_allowlist(repo_root=None, expected=None):
     """已暂存的每一条路径都必须匹配白名单，否则抛错中止。
 
     必须用 -z 和 core.quotePath=false 取原始路径：
@@ -88,6 +88,21 @@ def check_commit_allowlist(repo_root=None):
         cwd=repo_root, capture_output=True)
     raw = out.stdout.decode("utf-8", "replace")
     paths = [p for p in raw.split("\0") if p.strip()]
+    if expected is not None:
+        # 统一连号之后，DeepSeek 的文件名也是 NO.*，靠前缀已经分不出两家。
+        # 改成校验「暂存区恰好等于本次该写的那几条路径」—— 比模式匹配更严：
+        # 不只挡住不该碰的，还挡住「多写了一个本不该有的文件」。
+        want, got = set(expected), set(paths)
+        if want != got:
+            raise RuntimeError(
+                "暂存区与本次应写的文件对不上，已中止：\n"
+                "  应写：{}\n"
+                "  实际：{}\n"
+                "  多出：{}\n"
+                "  缺少：{}".format(
+                    sorted(want), sorted(got),
+                    sorted(got - want) or "无", sorted(want - got) or "无"))
+        return paths
     bad = [p for p in paths if not re.match(config.COMMIT_ALLOW, p)]
     if bad:
         raise RuntimeError(

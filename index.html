@@ -693,8 +693,14 @@ const THUMB = "";
    prefix 决定卡片编号的显示前缀；Claude 保持 "NO."，所有旧深链继续有效。
    以后加第三家，只在这里加一行。 */
 const LEDGERS = [
-  { ai:"claude",   label:"Claude",   prefix:"NO.", url:"Cards/cards-index.csv" },
-  { ai:"deepseek", label:"DeepSeek", prefix:"DS.", url:"Cards/cards-index-deepseek.csv" },
+  /* model 是该台账的默认模型号，用于台账本身没有 model 列的情况。
+     Claude 那份是项目最早的 12 列 schema，没有这一列，而它跑在 Cowork 的
+     定时任务里、用的是 Opus 5 —— 由项目所有者告知，不是推断出来的。
+     台账行里若带了 model，以行内的为准。 */
+  { ai:"claude",   label:"Claude",   prefix:"NO.", model:"claude-opus-5",
+    url:"Cards/cards-index.csv" },
+  { ai:"deepseek", label:"DeepSeek", prefix:"NO.", model:"",
+    url:"Cards/cards-index-deepseek.csv" },
 ];
 const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
@@ -875,7 +881,7 @@ function build(payloads){
         noPad: P.prefix + String(g("no")).padStart(4, "0"),
         ai: g("ai") || P.ai,
         aiLabel: P.label,
-        model: g("model"),
+        model: g("model") || P.model || "",
         dt: g("datetime"),
         S: g("S"), style: g("style"),
         K: g("K"), topic: g("topic"),
@@ -928,7 +934,7 @@ function build(payloads){
          裸数字那条旧回退只对 Claude 生效 —— 否则 #42 在两个系列里都成立，
          成了歧义。历史链接一律是 Claude 的，所以这样既保兼容又不含混。 */
       const i = VIEW.findIndex(c => c.noPad === h
-        || (c.ai === "claude" && c.no === h.replace(/^NO\.?0*/i,"")));
+        || c.no === h.replace(/^NO\.?0*/i,""));
       if (i >= 0) setTimeout(() => open(i), 260);
     }
   }
