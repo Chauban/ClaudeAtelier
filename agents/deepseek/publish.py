@@ -74,11 +74,20 @@ def append_ledger(meta):
 
 
 def check_commit_allowlist(repo_root=None):
-    """已暂存的每一条路径都必须匹配白名单，否则抛错中止。"""
+    """已暂存的每一条路径都必须匹配白名单，否则抛错中止。
+
+    必须用 -z 和 core.quotePath=false 取原始路径：
+    git 默认会把非 ASCII 文件名加引号并转成八进制转义（港式霓虹招牌 ->
+    \\346\\270\\257...），而风格简名恰恰都是中文。第一次真实发布就栽在这里 ——
+    转义里的反斜杠被当成路径分隔符处理掉，正则再也匹配不上，
+    于是守卫把自己该放行的文件拦了下来。
+    """
     repo_root = repo_root or config.ROOT
-    out = subprocess.run(["git", "diff", "--cached", "--name-only"],
-                         cwd=repo_root, capture_output=True, text=True)
-    paths = [p.strip().replace("\\", "/") for p in out.stdout.splitlines() if p.strip()]
+    out = subprocess.run(
+        ["git", "-c", "core.quotePath=false", "diff", "--cached", "--name-only", "-z"],
+        cwd=repo_root, capture_output=True)
+    raw = out.stdout.decode("utf-8", "replace")
+    paths = [p for p in raw.split("\0") if p.strip()]
     bad = [p for p in paths if not re.match(config.COMMIT_ALLOW, p)]
     if bad:
         raise RuntimeError(
