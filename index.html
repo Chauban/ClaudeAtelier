@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ClaudeAtelier · 卡片收藏</title>
-<meta name="description" content="一日之内，数次开窗。一句话，一件被核实过的事。47 种设计风格，7 种语言。">
+<meta name="description" content="一日之内，数次开窗。多个 AI，同一份题目：一句话，一件被核实过的事。47 种设计风格，7 种语言。">
 <meta property="og:title" content="ClaudeAtelier · 卡片收藏">
 <meta property="og:description" content="一日之内，数次开窗。一句话，一件被核实过的事。">
 <meta property="og:type" content="website">
@@ -583,7 +583,7 @@ footer a:hover{color:var(--accent-text)}
 
     <p class="eyebrow">Claude Atelier — 自动生成卡片收藏</p>
     <h1>一日之内，数次<em>开窗</em>。</h1>
-    <p class="lede">一句话，一件被核实过的事。47 种面孔与 7 种语言轮换生成，从不重复同一副样子。</p>
+    <p class="lede">一句话，一件被核实过的事。多个 AI 拿<a href="prompts/card-charter.md">同一份题目</a>各自作画，47 种面孔与 7 种语言轮换，从不重复同一副样子。</p>
     <div class="rule"></div>
   </header>
 
@@ -602,6 +602,13 @@ footer a:hover{color:var(--accent-text)}
 
   <nav class="toolbar">
     <div class="chips" id="chips">
+      <!-- AI 放在最前：博物馆的第一层级是「谁做的」。
+           顺带也避开了 .dd-panel 没有右缘翻转逻辑、min-width:236px
+           在 700px 附近会顶出屏幕的问题。 -->
+      <div class="dd" data-key="ai">
+        <button class="btn" data-toggle>AI <i class="caret"></i></button>
+        <div class="dd-panel"></div>
+      </div>
       <div class="dd" data-key="style">
         <button class="btn" data-toggle>风格 <i class="caret"></i></button>
         <div class="dd-panel"></div>
@@ -635,7 +642,9 @@ footer a:hover{color:var(--accent-text)}
     <span id="footStat">ClaudeAtelier</span>
     <span>·</span>
     <a href="README.md">README</a>
-    <a href="Cards/cards-index.csv">台账 CSV</a>
+    <a href="Cards/cards-index.csv">Claude 台账</a>
+    <a href="Cards/cards-index-deepseek.csv">DeepSeek 台账</a>
+    <a href="prompts/card-charter.md" title="两个 AI 拿到的是同一份题目">创作章程</a>
     <span class="spacer"></span>
     <span>← → 翻页　空格翻面　Esc 关闭</span>
   </footer>
@@ -679,7 +688,15 @@ const ORIGIN_BASE = "";
 // 网格缩略图前缀。留空 = 直接加载 webp。开了 Cloudflare Image Transformations 再填。
 const THUMB = "";
 
-const CSV_URL  = "Cards/cards-index.csv";
+/* 台账注册表。每个 AI 一份，互不干扰 ——
+   两个写入方永远不碰同一个文件，git 冲突从结构上不可能发生。
+   prefix 决定卡片编号的显示前缀；Claude 保持 "NO."，所有旧深链继续有效。
+   以后加第三家，只在这里加一行。 */
+const LEDGERS = [
+  { ai:"claude",   label:"Claude",   prefix:"NO.", url:"Cards/cards-index.csv" },
+  { ai:"deepseek", label:"DeepSeek", prefix:"DS.", url:"Cards/cards-index-deepseek.csv" },
+];
+const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
 const GAP = 26;
 const RAIL_N = 14;          // 轨道展示最新几张
@@ -745,8 +762,8 @@ function encPath(p){ return p.split("/").map(encodeURIComponent).join("/"); }
 /* ============================================================
    状态
    ============================================================ */
-let CARDS = [], VIEW = [], DICT = { style:[], lang:[], topic:[] };
-const filters = { style:null, lang:null, topic:null };
+let CARDS = [], VIEW = [], DICT = { ai:[], style:[], lang:[], topic:[] };
+const filters = { ai:null, style:null, lang:null, topic:null };
 let query = "";
 let cur = -1, flipped = false;
 
@@ -758,9 +775,24 @@ const grid = $("#grid"), box = $("#box"), flipper = $("#flipper"),
 /* ============================================================
    载入
    ============================================================ */
-fetch(CSV_URL)
-  .then(r => { if(!r.ok) throw new Error(r.status); return r.text(); })
-  .then(build)
+/* 并行取全部台账。用 allSettled 而不是 all —— 少了哪一份都不该让整个
+   画廊白屏：新接入的 AI 台账还不存在时（404），Claude 的卡照常展出。
+   只有全部都失败，才是真的读不到。 */
+function loadAll(opts){
+  return Promise.allSettled(LEDGERS.map(L =>
+    fetch(L.url, opts).then(r => r.ok ? r.text() : Promise.reject(r.status))
+  )).then(rs => rs.map((r, i) => Object.assign({}, LEDGERS[i], {
+    text: r.status === "fulfilled" ? r.value : null,
+    err:  r.status === "rejected"  ? r.reason : null,
+  })));
+}
+
+loadAll()
+  .then(payloads => {
+    if (payloads.every(p => p.text === null))
+      throw new Error(payloads.map(p => p.ai + ":" + p.err).join(" "));
+    build(payloads);
+  })
   .catch(err => {
     $("#railSec").style.display = "none";
     grid.innerHTML = '<div class="empty" style="position:static"><b>读不到台账</b>'
@@ -792,14 +824,24 @@ function sigOf(text){
   return t.length + "|" + t.slice(-200);
 }
 
+/* 多份台账的合并签名。缺失的那份记成 MISSING 而不是跳过 ——
+   这样「某份台账第一次出现」也会触发重建，否则新接入的 AI
+   要等到它自己再更新一次才会显示出来。 */
+function sigOfAll(payloads){
+  return payloads.map(p => p.ai + ":" + (p.text === null ? "MISSING" : sigOf(p.text)))
+                 .join("~");
+}
+
 function refetch(){
   if (box.classList.contains("on")) return;   // 灯箱开着时不打扰，下次切回来再说
   if (sheetDd) return;                        // 移动端筛选面板开着时同理，别把面板从手指下抽走
   if (Date.now() - LAST_FETCH < REFETCH_AFTER) return;
   LAST_FETCH = Date.now();
-  fetch(CSV_URL, { cache:"no-store" })
-    .then(r => r.ok ? r.text() : Promise.reject(r.status))
-    .then(text => { if (sigOf(text) !== LAST_SIG) build(text); })
+  loadAll({ cache:"no-store" })
+    .then(payloads => {
+      if (payloads.every(p => p.text === null)) return;   // 全挂了就保持现状
+      if (sigOfAll(payloads) !== LAST_SIG) build(payloads);
+    })
     .catch(() => {});                          // 网络不好就算了，下次再试
 }
 
@@ -809,36 +851,50 @@ document.addEventListener("visibilitychange", () => {
 addEventListener("focus", refetch);
 addEventListener("pageshow", e => { if (e.persisted) refetch(); });  // 从 bfcache 回来
 
-function build(text){
-  LAST_SIG   = sigOf(text);
+function build(payloads){
+  LAST_SIG   = sigOfAll(payloads);
   LAST_FETCH = Date.now();
-  const rows = parseCSV(text).filter(r => r.length > 1 && r[0].trim() !== "");
-  const head = rows.shift().map(h => h.trim());
-  const col = {}; head.forEach((h,i) => col[h] = i);
 
-  CARDS = rows.map(r => {
-    const g = k => (r[col[k]] || "").trim();
-    const file = g("filename");
-    const webRel = WEB_DIR + file.replace(/\.png$/i, ".webp");
-    return {
-      no: g("no"),
-      noPad: "NO." + String(g("no")).padStart(4, "0"),
-      dt: g("datetime"),
-      S: g("S"), style: g("style"),
-      K: g("K"), topic: g("topic"),
-      L: g("L"), lang: g("lang"),
-      file,
-      web: encPath(webRel),
-      thumb: (THUMB ? THUMB.replace(/\/$/, "") + "/" : "") + encPath(webRel),
-      webRaw: webRel,
-      origin: ORIGIN_BASE ? ORIGIN_BASE + encPath(file) : "",
-      txt: encPath("text/" + file.replace(/\.png$/i, ".md")),
-      quote: g("quote"), fact: g("fact"), source: g("source"),
-      ratio: 0.6, color: "#3a3a42", loaded: false
-    };
-  }).filter(c => c.no);
+  /* 逐份解析。每份台账用**自己的表头**建列映射 —— 各家 schema 允许不同，
+     DeepSeek 那份末尾多了 ai/model 两列，多出来的列对别人无害。 */
+  CARDS = [];
+  payloads.forEach(P => {
+    if (P.text === null) return;
+    const rows = parseCSV(P.text).filter(r => r.length > 1 && r[0].trim() !== "");
+    if (!rows.length) return;
+    const head = rows.shift().map(h => h.trim());
+    const col = {}; head.forEach((h,i) => col[h] = i);
 
-  CARDS.sort((a,b) => (+b.no) - (+a.no));   // 最新在前
+    rows.forEach(r => {
+      const g = k => (r[col[k]] || "").trim();
+      const file = g("filename");
+      if (!g("no") || !file) return;
+      const webRel = WEB_DIR + file.replace(/\.png$/i, ".webp");
+      CARDS.push({
+        no: g("no"),
+        noPad: P.prefix + String(g("no")).padStart(4, "0"),
+        ai: g("ai") || P.ai,
+        aiLabel: P.label,
+        model: g("model"),
+        dt: g("datetime"),
+        S: g("S"), style: g("style"),
+        K: g("K"), topic: g("topic"),
+        L: g("L"), lang: g("lang"),
+        file,
+        web: encPath(webRel),
+        thumb: (THUMB ? THUMB.replace(/\/$/, "") + "/" : "") + encPath(webRel),
+        webRaw: webRel,
+        origin: ORIGIN_BASE ? ORIGIN_BASE + encPath(file) : "",
+        txt: encPath("text/" + file.replace(/\.png$/i, ".md")),
+        quote: g("quote"), fact: g("fact"), source: g("source"),
+        ratio: 0.6, color: "#3a3a42", loaded: false
+      });
+    });
+  });
+
+  /* 按时间倒序，不能按 no —— 两个系列各自从 1 开始，比编号毫无意义。
+     datetime 是定宽 "YYYY-MM-DD HH:MM"，字符串比较即正确，不必 Date.parse。 */
+  CARDS.sort((a,b) => (a.dt < b.dt ? 1 : a.dt > b.dt ? -1 : (+b.no) - (+a.no)));
 
   /* 归组键：
      - 风格 S、领域 K 一码一义，用编码归组，顺带把简繁两种写法合并
@@ -847,8 +903,10 @@ function build(text){
     c.kStyle = c.S || c.style;
     c.kTopic = c.K || c.topic;
     c.kLang  = t2s(c.lang);
+    c.kAi    = c.ai;
   });
 
+  DICT.ai    = groupBy("kAi",    "aiLabel");
   DICT.style = groupBy("kStyle", "style");
   DICT.lang  = groupBy("kLang",  "lang");
   DICT.topic = groupBy("kTopic", "topic");
@@ -859,14 +917,18 @@ function build(text){
   applyFilters(true);
 
   $("#footStat").textContent =
-    `共 ${CARDS.length} 张 · 每 4 小时一张 · ${DICT.style.length} 种风格 · ${DICT.lang.length} 种语言 · ${DICT.topic.length} 个领域`;
+    `共 ${CARDS.length} 张 · ${DICT.ai.length} 个 AI · ${DICT.style.length} 种风格 · ${DICT.lang.length} 种语言 · ${DICT.topic.length} 个领域`;
 
   /* 只在首次构建时认 hash —— 否则每次自动重取都会把灯箱重新弹开 */
   if (FIRST_BUILD){
     FIRST_BUILD = false;
     const h = decodeURIComponent(location.hash.replace("#",""));
     if (h){
-      const i = VIEW.findIndex(c => c.noPad === h || c.no === h.replace(/^NO\.?0*/i,""));
+      /* 先按完整编号（NO.0058 / DS.0001）匹配。
+         裸数字那条旧回退只对 Claude 生效 —— 否则 #42 在两个系列里都成立，
+         成了歧义。历史链接一律是 Claude 的，所以这样既保兼容又不含混。 */
+      const i = VIEW.findIndex(c => c.noPad === h
+        || (c.ai === "claude" && c.no === h.replace(/^NO\.?0*/i,"")));
       if (i >= 0) setTimeout(() => open(i), 260);
     }
   }
@@ -895,7 +957,7 @@ function labelFor(key, code){
 /* ============================================================
    筛选下拉
    ============================================================ */
-const KEYNAME = { style:"风格", lang:"语言", topic:"领域" };
+const KEYNAME = { ai:"AI", style:"风格", lang:"语言", topic:"领域" };
 
 /* 窄屏走底部弹层：面板被搬去 body 层，dd.querySelector(".dd-panel") 会落空，
    所以面板引用一律走 dd._panel。 */
@@ -985,7 +1047,7 @@ function syncDropdown(dd){
   btn.innerHTML = (filters[key] ? esc(labelFor(key, filters[key])) : KEYNAME[key]) + ' <i class="caret"></i>';
 }
 function resetFilters(){
-  filters.style = filters.lang = filters.topic = null;
+  filters.ai = filters.style = filters.lang = filters.topic = null;
   query = ""; const qq = $("#q"); if (qq) qq.value = "";
   $("#searchWrap").classList.remove("has");
   document.querySelectorAll(".dd").forEach(syncDropdown);
@@ -1117,7 +1179,7 @@ function renderCards(){
          <div class="plate">
            <div class="no">${c.noPad}</div>
            <div class="st">${esc(c.style)}</div>
-           <div class="mt">${esc(labelFor("lang", c.kLang))} · ${esc(labelFor("topic", c.kTopic))} · ${c.dt.slice(0,10)}</div>
+           <div class="mt">${esc(c.aiLabel)} · ${esc(labelFor("lang", c.kLang))} · ${esc(labelFor("topic", c.kTopic))} · ${c.dt.slice(0,10)}</div>
          </div>
        </div>`;
     const img = el.querySelector("img");
@@ -1203,11 +1265,12 @@ addEventListener("resize", layout);
 function applyFilters(first){
   const q = query.trim().toLowerCase();
   VIEW = CARDS.filter(c => {
+    if (filters.ai    && c.kAi    !== filters.ai)    return false;
     if (filters.style && c.kStyle !== filters.style) return false;
     if (filters.lang  && c.kLang  !== filters.lang)  return false;
     if (filters.topic && c.kTopic !== filters.topic) return false;
     if (q){
-      const hay = (c.noPad+" "+c.style+" "+c.lang+" "+c.topic+" "+c.quote+" "+c.fact+" "+c.dt).toLowerCase();
+      const hay = (c.noPad+" "+c.aiLabel+" "+c.ai+" "+(c.model||"")+" "+c.style+" "+c.lang+" "+c.topic+" "+c.quote+" "+c.fact+" "+c.dt).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -1270,12 +1333,13 @@ function open(i){
      <p class="b-fact">${esc(c.fact)}</p>
      <div class="b-foot">
        <div class="b-meta">
+         <span class="tag" title="${esc(c.model||"")}">${esc(c.aiLabel)}</span>
          <span class="tag">S${c.S} · ${esc(c.style)}</span>
          <span class="tag">${esc(labelFor("lang", c.kLang))}</span>
        </div>
        <div class="b-links">
          ${c.source
-            ? `<a href="${esc(c.source)}" target="_blank" rel="noopener noreferrer">来源 · ${esc(srcHost)}</a>`
+            ? `<a href="${esc(safeUrl(c.source))}" target="_blank" rel="noopener noreferrer">来源 · ${esc(srcHost)}</a>`
             : `<span class="none">此条未附来源</span>`}
          <span class="sep">·</span>
          <a href="${c.txt}" target="_blank">文字副本</a>
@@ -1331,7 +1395,7 @@ let lastFocus = null;
 /* 灯箱底部胶片条：当前筛选结果的横向缩略图，点一下直接跳 */
 let filmToken = "";
 function viewToken(){
-  return VIEW.length + ":" + (VIEW[0] ? VIEW[0].no : "") + ":" + (VIEW.length ? VIEW[VIEW.length-1].no : "");
+  return VIEW.length + ":" + (VIEW[0] ? VIEW[0].noPad : "") + ":" + (VIEW.length ? VIEW[VIEW.length-1].noPad : "");
 }
 function renderFilm(){
   film.innerHTML = "";
@@ -1553,6 +1617,9 @@ function esc(s){
   return String(s == null ? "" : s)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
     .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function safeUrl(u){
+  return /^https?:\/\//i.test(String(u||"")) ? u : "";
 }
 function safeHost(u){
   try { return new URL(u).hostname.replace(/^www\./,""); } catch(e){ return "链接"; }
