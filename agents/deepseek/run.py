@@ -81,10 +81,23 @@ def main():
     ap.add_argument("--seed", type=int)
     a = ap.parse_args()
 
+    os.makedirs(a.out, exist_ok=True)
+
+    def status(v):
+        """把「这一班做了什么」写给 workflow 看。
+
+        「本班不该出卡」和「本班出卡失败」是两回事，workflow 必须能分开：
+        没有这个标记，新鲜度跳过时 out/publish/ 是空的，上传产物那步的
+        if-no-files-found: error 会把一次正确的跳过判成失败。
+        """
+        io.open(os.path.join(a.out, "status.txt"), "w", encoding="utf-8").write(v)
+        return v
+
     if not a.skip_freshness:
         ok, why = freshness_ok()
         print("[新鲜度] {}".format(why))
         if not ok:
+            status("skipped")
             return 0
 
     brief = build_brief(a.seed, a.force_style)
@@ -113,6 +126,7 @@ def main():
     res = compose.run(brief, os.path.join(a.out, "work"))
     if not res.get("ok"):
         print("\n渲染在 {} 轮内没能通过检查。本班次不发布任何东西。".format(res["rounds"]))
+        status("render-failed")
         return 1
     print("  {} 轮通过：{}".format(res["rounds"], png_path))
 
@@ -141,6 +155,7 @@ def main():
 
     if a.dry_run:
         print("  --dry-run：产物已生成在 {}，未写台账。".format(pub_dir))
+        status("dry-run")
         return 0
 
     # 原图先落袋：丢原图违反「原图必须在本地」这条第一约束，丢台账行不会。
@@ -148,6 +163,7 @@ def main():
     print("  压缩 {}".format(webp_rel))
     print("  文字 {}".format(md_rel))
     print("  台账 {}".format(publish.append_ledger(meta)))
+    status("published")
     return 0
 
 

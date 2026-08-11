@@ -40,6 +40,8 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.gen.outputs.status }}
     # 实测一张卡端到端最长 1281 秒，加上选题核实要留足余量。绝不能用默认值。
     timeout-minutes: 45
     permissions: {}              # 无写权限、无 token
@@ -66,6 +68,7 @@ jobs:
         run: python agents/deepseek/fonts.py
 
       - name: 生成
+        id: gen
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -73,6 +76,10 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ -n "${{ inputs.force_style }}" ]; then ARGS="$ARGS --force-style ${{ inputs.force_style }}"; fi
           python agents/deepseek/run.py --out out $ARGS
+          # 「本班不该出卡」与「本班出卡失败」必须分得开，否则新鲜度跳过
+          # 会被 if-no-files-found: error 误判成失败（2026-08-11 就是这么
+          # 连挂两次定时班的）。
+          echo "status=$(cat out/status.txt 2>/dev/null || echo unknown)" >> "$GITHUB_OUTPUT"
 
       # 原图先落袋。丢原图违反「原图必须留在本地」这条第一约束，丢台账行不会。
       # 保留 90 天而不是默认 14：公开仓库 artifact 存储免费，而「电脑关机三周」
@@ -87,6 +94,7 @@ jobs:
           if-no-files-found: warn
 
       - name: 上传发布物
+        if: steps.gen.outputs.status == 'published' || steps.gen.outputs.status == 'dry-run'
         uses: actions/upload-artifact@v4
         with:
           name: publish-${{ github.run_id }}
@@ -109,7 +117,7 @@ jobs:
     # （webp、文字副本、row.json 都会生成，只是不写台账），publish job 自己
     # 看不出这是演习 —— 少了这一行，一次「只想试试」的触发会把卡真发上线，
     # 而 web/* 是一年 immutable，发出去就撤不回来。
-    if: inputs.dry_run != true
+    if: inputs.dry_run != true && needs.generate.outputs.status == 'published'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
