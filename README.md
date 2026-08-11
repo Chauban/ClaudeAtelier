@@ -1,7 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **63** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **64** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0064 · 3D 玻璃水晶折射 · 法文
+
+<img src="web/2026-08/NO.0064_2026-08-11_S39-玻璃水晶折射_FR.webp" width="320">
+
+> Ce qui nous porte est presque toujours ce que l'on ne voit pas.（托举我们的，几乎总是那些看不见的东西。）
+
+**建筑与城市** — Sous l'Opéra Garnier dort une véritable citerne. En 1861, les ouvriers butèrent à neuf mètres sur une nappe d'eau impossible à épuiser ; Garnier fit alors couler un bassin étanche d'environ 300 m² et 2 m de profondeur, pour équilibrer la pression et servir de réserve anti-incendie. Les pompiers de Paris y font aujourd'hui leurs exercices de plongée en eau noire.（巴黎加尼叶歌剧院底下真有一座蓄水池。1861 年施工挖到九米深处涌出地下水，怎么抽也抽不干，加尼叶索性浇筑了一个约 300 平方米、深约 2 米的防水水槽，用来平衡水压兼作消防蓄水。如今巴黎消防员就在这片漆黑的水里做潜水训练。）
+
+`2026-08-11 20:09` ｜ [原图](Cards/2026-08/NO.0064_2026-08-11_S39-玻璃水晶折射_FR.png) ｜ [文字](text/2026-08/NO.0064_2026-08-11_S39-玻璃水晶折射_FR.md)
 
 ---
 
@@ -758,5 +770,3 @@
 **音乐与声音** — 1860年 Édouard-Léon Scott de Martinville 用 phonautographe 把《Au clair de la lune》刻在烟熏纸上，比爱迪生早17年，但机器不能回放，直到2008年扫描墨痕才第一次被听见。
 
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
-
----
