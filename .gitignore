@@ -14,3 +14,7 @@ desktop.ini
 航空信封邮票-20260729.png
 sync.log
 sync-last-run.log
+
+# Python 缓存
+__pycache__/
+*.pyc

@@ -16,6 +16,7 @@ LARGE_PX = 24
 
 EDGE_PAD = 6                # 逻辑 px：墨迹不许贴到这么近的边缘
 MIN_UNIQUE_COLORS = 24
+SOLID_ROLES_FOR_WIDOW = {"body", "quote", "title"}   # meta 短本来就正常，不查孤行
 
 
 class LintError(RuntimeError):
@@ -182,6 +183,19 @@ def run(sf, strict=True, known_text=None):
     # 但极简大留白（S1）之类的风格本来就该空，所以这里只警告、给一次改进机会，
     # 不做硬性拦截 —— 审美判断不该由规则代劳。
     warnings = list(warn_local)
+
+    # 孤行：折行后最后一行只剩一两个字。与禁则处理同一个家族 ——
+    # 盲模型看不见，但完全是机械规则。首张端到端卡就出了一个（引言末行只剩「る。」）。
+    for b in sf.boxes:
+        ls = getattr(b, "lines", None) or []
+        if len(ls) >= 2 and b.role in SOLID_ROLES_FOR_WIDOW:
+            last, prev = ls[-1].strip(), max((len(x) for x in ls[:-1]), default=1)
+            if 0 < len(last) <= 2 and prev >= 6:
+                warnings.append(
+                    "孤行：{!r} 折行后最后一行只剩 {!r}（前面各行有 {} 字左右）。"
+                    "把 max_w 调小一点或换个字号，让末行不至于只挂两个字。".format(
+                        (b.text or "")[:22], last, prev))
+
     rows = (ink > 140).sum(axis=1)
     nz = np.nonzero(rows > 0)[0]
     if len(nz):

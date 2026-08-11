@@ -39,12 +39,14 @@ class DrawError(RuntimeError):
 
 
 class Box:
-    __slots__ = ("x", "y", "w", "h", "role", "text", "size", "font", "fill", "mask_bbox")
+    __slots__ = ("x", "y", "w", "h", "role", "text", "size", "font", "fill",
+                 "mask_bbox", "lines")
 
     def __init__(self, x, y, w, h, role, text, size, font, fill):
         self.x, self.y, self.w, self.h = x, y, w, h
         self.role, self.text, self.size, self.font, self.fill = role, text, size, font, fill
         self.mask_bbox = None
+        self.lines = []
 
     @property
     def right(self):
@@ -233,6 +235,7 @@ class Surface:
             gx, gy, gw, gh = bx, by, blk_w, blk_h
 
         box = Box(gx, gy, gw, gh, role, text, size, family, fill)
+        box.lines = lines          # 供 lint 检查孤行
 
         # --- 越界
         if gx < fx - 0.5 or gy < fy - 0.5 or gx + gw > fx + fw + 0.5 or gy + gh > fy + fh + 0.5:
