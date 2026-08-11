@@ -25,8 +25,13 @@ import fonts as _fonts
 
 # 逻辑像素下的字号下限。正文 28 来自章程，元信息（编号/日期）放宽到 16。
 MIN_SIZE = {"body": 28, "quote": 28, "title": 28, "meta": 16}
-# 只有这几类彼此不许重叠；meta 可以贴着装饰走。
-SOLID_ROLES = {"body", "quote", "title"}
+# 文字压文字，任何角色都不允许。
+#
+# 原先这里只查 body/quote/title，把 meta 排除在外，理由是「meta 可以贴着
+# 装饰走」—— 但那说的是贴着**装饰**，不是压着**文字**。首张法文卡就栽在
+# 这个缺口上：冷知识的中文译文压在了 LÉGENDE 图例标题上，两块都是 Tier1
+# 文字，却因为其中一块是 meta 而放行。
+# 确实要叠的地方（比如刻意的重影效果），用 allow_overlap=True 显式声明。
 ROLES = set(MIN_SIZE)
 
 # 禁则处理（避头尾）：中日韩排版里这些标点不许出现在行首 / 行尾。
@@ -251,10 +256,10 @@ class Surface:
                     fx, fy, fw, fh, fx + fw, fy + fh, self.w, self.h,
                     len(lines), blk_w))
 
-        # --- 压字
-        if not allow_overlap and role in SOLID_ROLES:
+        # --- 压字：与**任何**已画文字块相撞都拦下
+        if not allow_overlap:
             for o in self.boxes:
-                if o.role in SOLID_ROLES and box.overlaps(o, pad=2):
+                if box.overlaps(o, pad=2):
                     raise DrawError(
                         "两块文字重叠了。\n"
                         "  这次要画  : {!r}\n"
