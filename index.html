@@ -1333,7 +1333,8 @@ function open(i){
      <p class="b-fact">${esc(c.fact)}</p>
      <div class="b-foot">
        <div class="b-meta">
-         <span class="tag" title="${esc(c.model||"")}">${esc(c.aiLabel)}</span>
+         <!-- 谁做的，是这个博物馆最要紧的一条信息，不该藏在 tooltip 里 -->
+         <span class="tag">${esc(c.aiLabel)}${c.model ? " · " + esc(c.model) : ""}</span>
          <span class="tag">S${c.S} · ${esc(c.style)}</span>
          <span class="tag">${esc(labelFor("lang", c.kLang))}</span>
        </div>
