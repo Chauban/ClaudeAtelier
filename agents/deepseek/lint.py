@@ -18,6 +18,20 @@ EDGE_PAD = 6                # 逻辑 px：墨迹不许贴到这么近的边缘
 MIN_UNIQUE_COLORS = 24
 SOLID_ROLES_FOR_WIDOW = {"body", "quote", "title"}   # meta 短本来就正常，不查孤行
 
+# 地区字形错配检查。
+#
+# 为什么需要它：Noto Sans CJK 的 JP/SC/TC 各 face **覆盖全部统一汉字**，
+# 所以用日文字体去画简体中文在 Linux 上不会缺字、不会豆腐块 —— 只会用日文
+# 字形画出中文，不报错、对比度正常、lint 全绿，只有懂排版的人才看得出不对。
+# （在 Windows 上反而会被豆腐块检查拦住，因为游黑体确实没有这些字形。
+#  也就是说这个 bug 在开发机会暴露、在生产环境不会 —— 必须专门查。）
+#
+# 判据：只挑那些「简体独有 / 繁体独有」且现代日文不用的字形，误报率低。
+SC_ONLY = set("电语说译测试这边车马鸟门关东时间认汉网际见长东乐义习众丽")
+TC_ONLY = set("電語說譯測試這邊車馬鳥門關東時間認漢網際見長樂義習眾麗")
+SC_FAMILIES = {"cjk-sc", "serif-cjk"}
+TC_FAMILIES = {"cjk-tc", "cjk-hk"}
+
 
 class LintError(RuntimeError):
     pass
@@ -195,6 +209,23 @@ def run(sf, strict=True, known_text=None):
                     "孤行：{!r} 折行后最后一行只剩 {!r}（前面各行有 {} 字左右）。"
                     "把 max_w 调小一点或换个字号，让末行不至于只挂两个字。".format(
                         (b.text or "")[:22], last, prev))
+
+    # 地区字形错配：Noto CJK 各 face 覆盖相同，缺字检查抓不到这一类
+    for b in sf.boxes:
+        fam, txt = (b.font or ""), (b.text or "")
+        sc_hits = sorted(set(txt) & SC_ONLY)
+        tc_hits = sorted(set(txt) & TC_ONLY)
+        if sc_hits and fam not in SC_FAMILIES and fam.startswith("cjk"):
+            warnings.append(
+                "地区字形错配：{!r} 含简体字 {} 却用了 {!r}。"
+                "在 Linux 上不会缺字，但会用该地区的字形去画中文，"
+                "字长得不对而 lint 看不出来。简体中文请用 cjk-sc。".format(
+                    txt[:20], "".join(sc_hits[:6]), fam))
+        elif tc_hits and fam not in TC_FAMILIES and fam.startswith("cjk"):
+            warnings.append(
+                "地区字形错配：{!r} 含繁体字 {} 却用了 {!r}。"
+                "繁体中文请用 cjk-tc（台湾）或 cjk-hk（香港/粤语）。".format(
+                    txt[:20], "".join(tc_hits[:6]), fam))
 
     rows = (ink > 140).sum(axis=1)
     nz = np.nonzero(rows > 0)[0]
