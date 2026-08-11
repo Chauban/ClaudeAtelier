@@ -100,6 +100,11 @@ jobs:
 
   publish:
     needs: generate
+    # dry_run 时绝不能发布。run.py 在 --dry-run 下**照样**产出 out/publish/
+    # （webp、文字副本、row.json 都会生成，只是不写台账），publish job 自己
+    # 看不出这是演习 —— 少了这一行，一次「只想试试」的触发会把卡真发上线，
+    # 而 web/* 是一年 immutable，发出去就撤不回来。
+    if: inputs.dry_run != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
