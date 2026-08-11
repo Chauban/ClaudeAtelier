@@ -18,3 +18,7 @@ sync-last-run.log
 # Python 缓存
 __pycache__/
 *.pyc
+
+# DeepSeek 原图取回任务的状态与日志
+.ds-fetch-state.json
+fetch-ds.log
