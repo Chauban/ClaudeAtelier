@@ -390,6 +390,70 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .empty{text-align:center;padding:90px 0;color:var(--fg-4);font-size:14px}
 .empty b{display:block;color:var(--fg-2);font-size:16px;margin-bottom:8px;font-weight:400}
 
+/* ============ 对照展墙 ============
+   行 = 班次（同一道题），列 = AI（同一只手），**列位固定不变**。
+   横着读是「同一道题的 N 种答法」，竖着读是「这只手一贯什么脾气」——
+   固定列位是这个视图的全部意义，绝不要改成「按有无内容紧凑排列」，
+   那样空格子一消失，纵向就没法比了。
+   列数由 LEDGERS 长度驱动（--cols），以后加第三家第四家不用碰这里。 */
+#wall{display:none;margin-bottom:80px}
+body[data-view="wall"] #wall{display:block}
+body[data-view="wall"] #grid,
+body[data-view="wall"] #empty,
+body[data-view="wall"] .rail-sec{display:none}   /* 对照模式下「最新」轨道是噪音 */
+
+.wall-grid{
+  display:grid;
+  grid-template-columns:minmax(118px,168px) repeat(var(--cols),minmax(0,1fr));
+  column-gap:var(--gap);
+}
+.wall-grid>*{min-width:0}
+/* 一班一行。desktop 下 display:contents 让格子直接成为网格项，
+   列才对得齐；窄屏那边再把它变回块级容器。 */
+.wrow{display:contents}
+
+/* 列头：这一列是谁的手 */
+.wh{
+  padding:0 0 9px;margin-bottom:20px;border-bottom:1px solid var(--line);
+  font-size:11.5px;letter-spacing:.12em;color:var(--fg-4);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.wh.who{color:var(--accent-text)}
+
+/* 最左一列：这一班的题目 */
+.wq{padding:1px 0 34px}
+.wq .tp{font-size:14.5px;color:var(--fg);line-height:1.45}
+.wq .mt{font-size:11.5px;color:var(--fg-4);margin-top:5px;line-height:1.6}
+.wq .rl{width:20px;height:1px;background:var(--accent-line);margin-top:11px;opacity:.75}
+
+/* 格子 */
+.wcell{padding-bottom:34px}
+.wcell .thumb{
+  appearance:none;border:0;padding:0;display:block;width:100%;aspect-ratio:1/1.6;
+  border-radius:10px;overflow:hidden;background:var(--card-bg);cursor:pointer;
+  box-shadow:var(--shadow-card);
+  transition:transform .4s var(--ease),box-shadow .4s var(--ease);
+}
+.wcell .thumb:hover{transform:translateY(-4px);box-shadow:var(--shadow-card-hi)}
+.wcell .thumb:focus-visible{outline:none;box-shadow:0 0 0 2px var(--accent),var(--shadow-card-hi)}
+.wcell img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .6s ease}
+.wcell img.in{opacity:1}
+.wcell .cap{margin-top:9px;font-size:11.5px;color:var(--fg-4);line-height:1.55}
+.wcell .cap b{display:block;font-weight:400;color:var(--fg-2);font-size:12.5px}
+
+/* 空格子 = 这一班这只手没交卷。留白本身就是档案记录，
+   不要用占位图或者「敬请期待」糊过去。 */
+.wcell .none{
+  display:grid;place-items:center;aspect-ratio:1/1.6;
+  border:1px dashed var(--line);border-radius:10px;
+  color:var(--fg-5);font-size:11px;letter-spacing:.16em;
+}
+
+/* 解不出班次的卡：补做的、K/L 手工指定的。单独陈列，不混进对照。 */
+.wloose{margin-top:26px;padding-top:26px;border-top:1px solid var(--line-soft)}
+.wloose .lh{font-size:11.5px;letter-spacing:.12em;color:var(--fg-4);margin-bottom:18px}
+.wloose .ls{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--gap)}
+
 /* ============ 灯箱 ============ */
 #box{
   position:fixed;inset:0;z-index:100;display:none;
@@ -560,6 +624,24 @@ footer a:hover{color:var(--accent-text)}
   .rail-head .tip{display:none}
   /* 全屏遮挡下模糊强度看不太出来，降一档省 GPU */
   #box{backdrop-filter:blur(12px) saturate(.85);-webkit-backdrop-filter:blur(12px) saturate(.85)}
+
+  /* 对照展墙：手机上纵向对齐既做不到也没意义（一屏放不下 N 列）。
+     改成「一班一行、题目在上、格子横滑」。列位对齐这个性质在这里放弃，
+     换来每张卡还看得清 —— 这是取舍，不是退化。 */
+  .wall-grid{display:block}
+  .wall-grid>.wh{display:none}
+  .wrow{
+    display:block;margin-bottom:34px;
+    padding-bottom:4px;
+    white-space:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    scrollbar-width:none;-ms-overflow-style:none;
+    margin-inline:calc(-1 * var(--pad));padding-inline:var(--pad);
+  }
+  .wrow::-webkit-scrollbar{display:none}
+  /* 题目要占满一行、不跟着横滑，所以从滚动流里摘出来定宽 */
+  .wq{display:block;white-space:normal;width:calc(100vw - var(--pad)*2);padding-bottom:14px}
+  .wrow .wcell{display:inline-block;vertical-align:top;white-space:normal;
+               width:min(46%,190px);margin-right:12px;padding-bottom:0}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.06s !important}
@@ -621,6 +703,10 @@ footer a:hover{color:var(--accent-text)}
         <button class="btn" data-toggle>领域 <i class="caret"></i></button>
         <div class="dd-panel"></div>
       </div>
+      <!-- 视图开关。刻意插在所有 .dd 之后 —— 放在前面会把下拉整体右推，
+           重新触发上面注释里说的那个 700px 溢出问题。 -->
+      <button class="btn on" id="viewGrid" type="button" title="全部卡片，瀑布流">展墙</button>
+      <button class="btn" id="viewWall" type="button" title="同一班的卡片并排对照">对照</button>
       <button class="btn" id="todayBtn" title="按日期固定，每天换一张">今日</button>
       <button class="btn" id="randBtn" title="随机抽一张">随机</button>
     </div>
@@ -638,12 +724,15 @@ footer a:hover{color:var(--accent-text)}
     <b>这一格是空的</b>换个筛选条件试试
   </div>
 
+  <!-- 对照展墙：行 = 班次，列 = AI。内容由 renderWall() 填 -->
+  <section id="wall" aria-label="同题对照"></section>
+
   <footer>
     <span id="footStat">ClaudeAtelier</span>
     <span>·</span>
     <a href="README.md">README</a>
     <a href="Cards/cards-index.csv">Claude 台账</a>
-    <a href="Cards/cards-index-deepseek.csv">DeepSeek 台账</a>
+    <a href="deepseekv4flash/Cards/cards-index.csv">DeepSeek 台账</a>
     <a href="prompts/card-charter.md" title="两个 AI 拿到的是同一份题目">创作章程</a>
     <span class="spacer"></span>
     <span>← → 翻页　空格翻面　Esc 关闭</span>
@@ -931,6 +1020,12 @@ function build(payloads){
   renderCards();
   renderRail();
   applyFilters(true);
+
+  /* 记住上次停在哪个视图。放在认 hash 之前 —— 深链要落到已经切好的视图里。 */
+  if (FIRST_BUILD){
+    let v = null; try{ v = localStorage.getItem(VIEW_KEY); }catch(e){}
+    if (v === "wall") setView("wall", false);
+  }
 
   $("#footStat").textContent =
     `共 ${CARDS.length} 张 · ${DICT.ai.length} 个 AI · ${DICT.style.length} 种风格 · ${DICT.lang.length} 种语言 · ${DICT.topic.length} 个领域`;
@@ -1277,6 +1372,161 @@ function layout(){
 addEventListener("resize", layout);
 
 /* ============================================================
+   班次：把「同一道题」认出来
+   ============================================================
+   章程第 1 节规定 K（领域）和 L（语言）都由 N —— UTC 纪元小时数 —— 算出：
+       K = N%17+1      L = N%7+1
+   所以拿到同一个 N 的卡片，题目必然完全一样。这就是对照展墙的配对依据，
+   也是这个项目的题眼：同一道题，不同的手。
+
+   台账目前没有 slot 列，所以这里反过来从 datetime + K + L 把 N 解回来。
+   看着像猜，其实是解方程 —— 两个同余式必须同时成立，周期 lcm(17,7)=119 小时，
+   随便蒙中的概率约 1/119。实测 67 张里 66 张零漂移还原。
+
+   解不出来的那张（Claude NO.0035）不是 bug：它是 2026-08-06 事故当天补做的，
+   K/L 由人手工指定，本来就不属于任何班次。这类卡单独陈列，不要去「修正」台账 ——
+   档案不修补藏品，对不上本身就是记录。
+
+   哪天台账真加了 slot 列，把 slotOf 第一行改成读列即可，其余全都不用动。 */
+const TZ_OFFSET  = 8;                 // 台账 datetime 写的是本地时间（UTC+8）
+const SLOT_DRIFT = [0,-1,1,-2,2];     // 容许跨小时：补位班、以及生成压线到下一小时
+
+function slotOf(c){
+  if (c.slot) return +c.slot;                        // 台账将来若有这列，以它为准
+  const m = /^(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d)/.exec(c.dt || "");
+  const K = +c.K, L = +c.L;
+  if (!m || !K || !L) return null;
+  const n0 = Math.floor(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) / 3600e3) - TZ_OFFSET;
+  for (const d of SLOT_DRIFT){
+    const n = n0 + d;
+    if (n % 17 + 1 === K && n % 7 + 1 === L) return n;
+  }
+  return null;
+}
+
+/* 班次的展示名。刻意不印班次号 —— 496108 对观众没有任何意义，
+   他关心的是「这道题是什么」。班次号只在代码里用。 */
+function slotWhen(n){
+  const d = new Date((n + TZ_OFFSET) * 3600e3);   // 用 UTC 字段读出来正好是本地班次时刻
+  return (d.getUTCMonth()+1) + "月" + d.getUTCDate() + "日 "
+       + String(d.getUTCHours()).padStart(2,"0") + ":00 班";
+}
+
+/* 按班次归拢。走 VIEW 而不是 CARDS，所以筛选和搜索对这个视图同样生效。 */
+function slotRows(){
+  const m = new Map(), loose = [];
+  VIEW.forEach(c => {
+    const n = slotOf(c);
+    if (n == null){ loose.push(c); return; }
+    if (!m.has(n)) m.set(n, new Map());
+    const byAi = m.get(n);
+    /* 同一家同一班理论上只有一张，但用数组存 —— 真出现两张（历史上重过号）
+       必须看得见，不能被 Map 悄悄覆盖掉。 */
+    if (!byAi.has(c.ai)) byAi.set(c.ai, []);
+    byAi.get(c.ai).push(c);
+  });
+  return { rows:[...m.entries()].sort((a,b) => b[0] - a[0]), loose };
+}
+
+/* ============================================================
+   对照展墙
+   ============================================================ */
+const wall = $("#wall");
+
+function wcell(c){
+  return `<button class="thumb" data-uid="${esc(c.uid)}" title="${esc(c.noPad + " " + c.style)}">`
+       +   `<img loading="lazy" decoding="async" src="${c.thumb}" alt="${esc(c.noPad + " " + c.style)}">`
+       + `</button>`
+       + `<div class="cap"><b>${esc(c.style)}</b>${esc(c.noPad)}</div>`;
+}
+
+function renderWall(){
+  const { rows, loose } = slotRows();
+
+  /* 列的顺序与数量一律跟着 LEDGERS 走，不跟着「这一班谁出了卡」走 ——
+     列位必须恒定，否则纵向就没法读了。加第三家只改 LEDGERS。 */
+  let h = `<div class="wall-grid" style="--cols:${LEDGERS.length}">`
+        + `<div class="wh"></div>`
+        + LEDGERS.map(L => `<div class="wh who">${esc(L.label)}</div>`).join("");
+
+  rows.forEach(([n, byAi]) => {
+    const any = [...byAi.values()][0][0];   // 同班的 K、L 必然相同，取谁都一样
+    h += `<section class="wrow">`
+       +   `<div class="wq">`
+       +     `<div class="tp">${esc(labelFor("topic", any.kTopic))}</div>`
+       +     `<div class="mt">${esc(labelFor("lang", any.kLang))}<br>${esc(slotWhen(n))}</div>`
+       +     `<div class="rl"></div>`
+       +   `</div>`;
+    h += LEDGERS.map(L => {
+      const list = byAi.get(L.ai);
+      return `<div class="wcell">`
+           + (list && list.length ? list.map(wcell).join("") : `<div class="none">未出卡</div>`)
+           + `</div>`;
+    }).join("");
+    h += `</section>`;
+  });
+  h += `</div>`;
+
+  if (loose.length)
+    h += `<div class="wloose"><div class="lh">不属于任何班次 · 领域与语言为人工指定</div>`
+       +   `<div class="ls">${loose.map(c => `<div class="wcell">${wcell(c)}</div>`).join("")}</div>`
+       + `</div>`;
+
+  if (!rows.length && !loose.length)
+    h = `<div class="empty" style="display:block"><b>这里是空的</b>换个筛选条件试试</div>`;
+
+  wall.innerHTML = h;
+
+  /* 图多半已经被瀑布流那边加载过、直接就是 complete，
+     只挂 load 监听会永远等不到，那些格子就一直是空的。 */
+  wall.querySelectorAll(".wcell img").forEach(img => {
+    if (img.complete && img.naturalWidth) img.classList.add("in");
+    else img.addEventListener("load", () => img.classList.add("in"), { once:true });
+    img.addEventListener("error", () => {
+      const d = document.createElement("div");
+      d.className = "none"; d.textContent = "图片缺失";
+      const t = img.closest(".thumb"); if (t) t.replaceWith(d);
+    }, { once:true });
+  });
+
+  $("#count").textContent = rows.length ? `${rows.length} 班 · ${VIEW.length} 张`
+                                        : `${VIEW.length} 张`;
+}
+
+/* 事件委托：展墙每次筛选都整个重建，逐个绑监听会漏 */
+wall.addEventListener("click", e => {
+  const t = e.target.closest(".thumb"); if (!t) return;
+  const c = CARDS.find(x => x.uid === t.dataset.uid);
+  const i = c ? VIEW.indexOf(c) : -1;
+  if (i >= 0) open(i);
+});
+
+/* ============================================================
+   视图切换
+   ============================================================ */
+const VIEW_KEY = "atelier-view";
+let viewMode = "grid";
+
+function gridCount(){
+  $("#count").textContent = VIEW.length === CARDS.length
+    ? `${CARDS.length} 张`
+    : `${VIEW.length} / ${CARDS.length} 张`;
+}
+
+function setView(v, persist){
+  viewMode = (v === "wall") ? "wall" : "grid";
+  document.body.dataset.view = viewMode;
+  $("#viewGrid").classList.toggle("on", viewMode === "grid");
+  $("#viewWall").classList.toggle("on", viewMode === "wall");
+  if (persist){ try{ localStorage.setItem(VIEW_KEY, viewMode); }catch(e){} }
+  /* 切回瀑布流必须重算一次：刚才它是 display:none，clientWidth 为 0，
+     那期间发生的任何 layout() 都算不出正确列宽。 */
+  if (viewMode === "wall") renderWall(); else { gridCount(); layout(); }
+}
+$("#viewGrid").addEventListener("click", () => setView("grid", true));
+$("#viewWall").addEventListener("click", () => setView("wall", true));
+
+/* ============================================================
    筛选
    ============================================================ */
 function applyFilters(first){
@@ -1293,11 +1543,10 @@ function applyFilters(first){
     return true;
   });
   CARDS.forEach(c => c.el.classList.toggle("hide", !VIEW.includes(c)));
-  $("#count").textContent = VIEW.length === CARDS.length
-    ? `${CARDS.length} 张`
-    : `${VIEW.length} / ${CARDS.length} 张`;
+  gridCount();
   $("#empty").style.display = VIEW.length ? "none" : "block";
   layout();
+  if (viewMode === "wall") renderWall();   // 展墙也吃同一套筛选，它会自己改写计数
   if (!first) window.scrollTo({ top: Math.min(scrollY, grid.offsetTop - 90), behavior:SMOOTH });
 }
 
