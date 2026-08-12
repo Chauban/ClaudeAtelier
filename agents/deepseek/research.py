@@ -14,11 +14,13 @@ context 是 2026-08-12 加的：渲染会话此前只拿到 quote 和 fact 两�
 """
 import io
 import json
+import os
 
 import client
 import config
 import fetch
 import ledger
+import meter
 import search
 import verify
 
@@ -79,6 +81,50 @@ context 的要求：
   · 它不上卡，所以不必压缩成金句腔；给具体的数字、场景、对比。"""
 
 
+# 上下文里允许留多少工具结果（字符）。超了就把最旧的压成一行。
+#
+# 为什么必须有：这个循环每调用一次，就把**之前所有**的搜索结果和抓回来的正文
+# 整个重发一遍 —— 15 次调用下来是二次增长。2026-08-12 第一张 K3 卡花了 14 元，
+# 其中约 12.6 元在输入上，这里是最大的一块。
+#
+# 裁剪顺序是刻意的：**先裁搜索结果，正文留到最后再动。**
+# 搜索结果是链接清单，模型挑完页面就用不上了；而正文是 claims 里 evidence
+# 逐字引用的来源，裁早了它就只能凭印象编，那是在省小钱坏大事。
+TOOL_CTX_BUDGET = int(os.environ.get("TOOL_CTX_BUDGET", "24000"))
+_TRIMMED = "（这条工具结果已从上下文移除以控制长度；你若还需要它，重新调用一次。）"
+
+
+def _trim_tool_history(messages, verbose=False):
+    """把最旧的工具结果压成一行，直到总量回到预算内。就地修改 messages。"""
+    idx = [i for i, m in enumerate(messages)
+           if m.get("role") == "tool" and m.get("content") != _TRIMMED]
+    total = sum(len(messages[i].get("content") or "") for i in idx)
+    if total <= TOOL_CTX_BUDGET:
+        return 0
+
+    # 每条工具结果是哪个工具产生的 —— 靠它上一条 assistant 消息里的 tool_calls 认。
+    kind = {}
+    for i, m in enumerate(messages):
+        for tc in (m.get("tool_calls") or []):
+            kind[tc["id"]] = tc["function"]["name"]
+
+    def rank(i):
+        # 数字越小越先被裁：搜索结果最先，正文最后；同类里越旧越先
+        return (0 if kind.get(messages[i].get("tool_call_id")) == "web_search" else 1, i)
+
+    n = 0
+    for i in sorted(idx, key=rank):
+        if total <= TOOL_CTX_BUDGET:
+            break
+        total -= len(messages[i].get("content") or "")
+        messages[i] = dict(messages[i], content=_TRIMMED)
+        n += 1
+    if n and verbose:
+        print("    [上下文裁剪] 移除 {} 条旧工具结果，工具文本降到约 {} 字".format(
+            n, total))
+    return n
+
+
 def _charter_excerpt():
     """章程里与选题核实相关的几节。创作要求的唯一真相源仍是章程本身。"""
     text = io.open(config.CHARTER, encoding="utf-8").read()
@@ -131,7 +177,10 @@ def run(brief, verbose=True):
     calls = 0
     for attempt in range(1, config.MAX_RESEARCH_ATTEMPTS + 1):
         for _ in range(config.MAX_SEARCH_HARD + 6):
-            msg, meta = client.chat(messages, tools=[SEARCH_TOOL, READ_TOOL])
+            _trim_tool_history(messages, verbose)
+            msg, meta = client.chat(messages, tools=[SEARCH_TOOL, READ_TOOL],
+                                    stage="research")
+            meter.record("research", meta)
             messages.append({k: v for k, v in msg.items() if v is not None})
             tcs = msg.get("tool_calls") or []
             if not tcs:

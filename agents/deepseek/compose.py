@@ -17,6 +17,7 @@ sys.path.insert(0, HERE)
 import client  # noqa: E402
 import config  # noqa: E402
 import guard  # noqa: E402
+import meter  # noqa: E402
 
 MAX_ROUNDS = config.MAX_ROUNDS
 CHARTER = config.CHARTER
@@ -29,6 +30,7 @@ def _read(p):
 def chat(messages, max_tokens=None, timeout=None):
     """转调共用客户端。重试、超时、token 预算全在 config/client 里统一管。"""
     msg, meta = client.chat(messages, max_tokens=max_tokens, timeout=timeout)
+    meter.record("render", meta)
     return (msg.get("content") or ""), {
         "s": meta["sec"], "out": meta["out"],
         "reason": meta["reasoning"], "finish": meta["finish"],

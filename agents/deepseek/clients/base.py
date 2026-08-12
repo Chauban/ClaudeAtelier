@@ -117,8 +117,20 @@ def chat(messages, tools=None, max_tokens=None, json_mode=False,
 
     ch = data["choices"][0]
     u = data.get("usage", {}) or {}
+    # 输入 token 与其中的缓存命中数。**这两个数以前没记，是个代价不小的疏漏**：
+    # 2026-08-12 第一张 K3 卡花了 14 元，其中约 12.6 元在输入上，而当时日志里
+    # 只有输出 token，根本看不出钱花在哪儿。缓存命中价通常是未命中的十分之一，
+    # 命中率是这条线成本的头号变量，必须能看见。
+    #
+    # 各家字段名不统一：Moonshot/OpenAI 走 prompt_tokens_details.cached_tokens，
+    # DeepSeek 走顶层的 prompt_cache_hit_tokens。两个都认。
+    cached = (u.get("prompt_tokens_details") or {}).get("cached_tokens")
+    if cached is None:
+        cached = u.get("prompt_cache_hit_tokens")
     meta = {
         "sec": round(time.time() - t0, 1),
+        "in": u.get("prompt_tokens"),
+        "cached": cached,
         "out": u.get("completion_tokens"),
         "reasoning": (u.get("completion_tokens_details") or {}).get("reasoning_tokens"),
         "finish": ch.get("finish_reason"),

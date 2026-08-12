@@ -28,6 +28,7 @@ sys.path.insert(0, HERE)
 import client  # noqa: E402
 import config  # noqa: E402
 import guard  # noqa: E402
+import meter  # noqa: E402
 
 MAX_ROUNDS = config.MAX_ROUNDS
 CHARTER = config.CHARTER
@@ -96,22 +97,46 @@ def build_prompt(brief):
     return [{"role": "system", "content": sysmsg}, {"role": "user", "content": user}]
 
 
+CRITIQUE_SYS = (
+    "你是 ClaudeAtelier 的验片员。看一张刚渲染出来的卡片，指出画面上的问题。\n"
+    "只输出一个 JSON 对象：\n"
+    '{"ok": true/false, '
+    '"problems": [{"where":"位置", "what":"什么毛病", "fix":"怎么改"}], '
+    '"style_fidelity": 1-5, "notes": "一句话总评"}\n'
+    "不要输出别的任何文字。")
+
 CRITIQUE_ASK = (
-    "这是你刚画出来的那张卡（等比缩到 {w}×{h} 给你看，原图是它的 {mul} 倍）。\n\n"
-    "请**逐块**检查：金句、冷知识、流水号、日期 —— 每一块是否完整、清晰、"
-    "没被装饰或图层盖住、没超出画布、字号在缩略图尺寸下仍读得出来；"
-    "中文有没有变成方框；字形是不是该地区的。\n"
-    "然后退开看整张：构图重心、留白、以及有多像「{style}」这个风格。\n\n"
-    "只输出那个 JSON 判词（ok / problems / style_fidelity / notes），不要别的话。")
+    "这是刚画出来的卡（等比缩到 {w}×{h}，原图是它的 2 倍）。目标风格：{style}。\n\n"
+    "卡面上应当**且只应当**出现这四样文字，逐字如下：\n"
+    "  流水号：{serial}\n  日期：{date}\n  金句：{quote}\n  冷知识：{fact}\n\n"
+    "请**逐块**核对：每一块是否完整、逐字无误（标点的全形半形也算）、清晰、"
+    "没被装饰或图层盖住、没超出画布、字号在这个缩略尺寸下仍读得出来；"
+    "中文有没有变成方框；字形是不是{lang}该用的；西文单词有没有被从中间断行；"
+    "标点有没有落在行首。\n"
+    "然后退开看整张：构图重心、留白、以及有多像「{style}」。\n\n"
+    "只输出那个 JSON 判词。")
 
 
 def critique(messages, png_path, brief, verbose=True):
-    """把图发回去，要一份结构化判词。返回 (verdict_dict, meta)。"""
+    """把图发回去，要一份结构化判词。返回 (verdict_dict, meta)。
+
+    **刻意不带渲染会话的历史。** 早先这里是 `messages + 问题`，于是每次自检都
+    连章程全文、环境说明和模型刚写的那份脚本一起重发一遍 —— 2026-08-12 第一张
+    卡 14 元，这是两个大头之一。验片只需要「风格 + 四段文字 + 那张图」，
+    代码长什么样与画面对不对无关。
+
+    额外的好处：不给它看自己的代码，它就只能**从图上**判断，而不是从代码里
+    推断画面应该是什么样 —— 这条线要测的恰恰是前者。
+    """
     img, (w, h) = feedback_image(png_path)
     ask = CRITIQUE_ASK.format(
-        w=w, h=h, mul=2, style=brief["STYLE_NAME"])
-    msgs = messages + [{"role": "user", "content": ask}]
+        w=w, h=h, style=brief["STYLE_NAME"], lang=brief["LANG"],
+        serial=brief["SERIAL"], date=brief["DATE"],
+        quote=brief["QUOTE"], fact=brief["FACT"])
+    msgs = [{"role": "system", "content": CRITIQUE_SYS},
+            {"role": "user", "content": ask}]
     msg, meta = client.chat(msgs, images=[img], json_mode=True, stage="critique")
+    meter.record("critique", meta)
     txt = msg.get("content") or ""
     try:
         v = client.extract_json(txt)
@@ -152,6 +177,7 @@ def run(brief, workdir, verbose=True):
         if verbose:
             print("\n--- 第 {} 轮 ---".format(rd))
         msg, meta = client.chat(messages, stage="render")
+        meter.record("render", meta)
         resolved = meta.get("model") or resolved
         txt = msg.get("content") or ""
         if verbose:

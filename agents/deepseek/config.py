@@ -64,8 +64,12 @@ PROVIDERS = {
         "token_param": "max_completion_tokens",
         "max_tokens": 131072,
         # K3 常开思考，但**它真的认这个参数**（DeepSeek 是接受了静默忽略）。
-        # 写代码轮给 low 避免推理烧光预算，选题与看图自检给 high。
+        # 2026-08-12 实测：渲染轮给 low，每轮推理只烧 30~322 token —— 与
+        # DeepSeek 那边「给 64000 烧满 64000」形成鲜明对比。这个参数是真的。
         "reasoning_param": "reasoning_effort",
+        # 元 / 百万 token。**输出比未命中输入贵 5 倍，未命中比命中贵 10 倍** ——
+        # 所以省钱的第一顺位不是少说话，是让前缀能被缓存命中。
+        "price": {"in_miss": 20.0, "in_hit": 2.0, "out": 100.0, "unit": "元"},
     },
 }
 AI = os.environ.get("ATELIER_AI", "flash")

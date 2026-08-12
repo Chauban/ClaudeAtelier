@@ -10,6 +10,9 @@ import ast
 # 允许导入的模块（含子模块前缀匹配）
 ALLOWED_IMPORTS = {
     "math", "random", "colorsys", "itertools", "functools", "typing",
+    # 排版正当需求：折行、断词、对齐都要用。2026-08-12 实测 K3 首张卡
+    # 就 import re 触发了一条无谓的警告。它们都不碰 IO、不碰网络。
+    "re", "string", "textwrap", "unicodedata",
     "numpy", "PIL", "atelier_canvas", "fonts",
 }
 # 明确禁止：网络、子进程、文件系统漫游、动态执行

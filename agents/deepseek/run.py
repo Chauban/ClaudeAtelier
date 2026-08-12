@@ -23,6 +23,7 @@ import compose         # noqa: E402
 import compose_vision  # noqa: E402
 import config          # noqa: E402
 import ledger         # noqa: E402
+import meter          # noqa: E402
 import publish        # noqa: E402
 import research       # noqa: E402
 import tables         # noqa: E402
@@ -210,6 +211,11 @@ def main():
         json.dumps({"claims": report["claims"],
                     "unsupported_tokens": report.get("unsupported_tokens", [])},
                    ensure_ascii=False, indent=1))
+
+    # 账单。一条每 4 小时跑一次、要跑很多年的产线，成本必须是可见的量。
+    # 2026-08-12 第一张 K3 卡花了 14 元才发现这件事没人在看。
+    print("\n[账单]")
+    print(meter.report())
 
     if a.dry_run:
         print("  --dry-run：产物已生成在 {}，未写台账。".format(pub_dir))
