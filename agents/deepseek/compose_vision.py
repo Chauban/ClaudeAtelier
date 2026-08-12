@@ -114,7 +114,7 @@ CRITIQUE_ASK = (
     "中文有没有变成方框；字形是不是{lang}该用的；西文单词有没有被从中间断行；"
     "标点有没有落在行首。\n"
     "然后退开看整张：构图重心、留白、以及有多像「{style}」。\n\n"
-    "只输出那个 JSON 判词。")
+    "只输出那个 JSON 判词。**每条 problem 三个字段各一句话，不要展开论述**；没毛病就交空数组。")
 
 
 def critique(messages, png_path, brief, verbose=True):
@@ -135,7 +135,10 @@ def critique(messages, png_path, brief, verbose=True):
         quote=brief["QUOTE"], fact=brief["FACT"])
     msgs = [{"role": "system", "content": CRITIQUE_SYS},
             {"role": "user", "content": ask}]
-    msg, meta = client.chat(msgs, images=[img], json_mode=True, stage="critique")
+    # 判词是结构化的短文本，给它 4000 就绰绰有余。不设上限时实测每条写到
+    # 1638 token（11 条 = 1.8 元），全花在 fix 字段的长篇建议上。
+    msg, meta = client.chat(msgs, images=[img], json_mode=True,
+                            stage="critique", max_tokens=4000)
     meter.record("critique", meta)
     txt = msg.get("content") or ""
     try:
@@ -261,10 +264,20 @@ def run(brief, workdir, verbose=True):
             for line in _fmt_problems(v).splitlines()[:3]:
                 print("   {}".format(line))
 
-        if v.get("ok") and not (v.get("problems") or []):
+        # **以它自己的 ok 为准，不再额外要求「问题列表为空」。**
+        #
+        # 2026-08-13 的教训：环境说明里写着「ok：这张卡能不能发出去，只有你自己
+        # 说了算」，代码里却写成 `ok and not problems`。而它说 ok 的时候照例会
+        # 附几条「还可以更好」的小建议，于是永远不满足 —— 第 5 轮它就认可了，
+        # 硬生生磨到第 12 轮，多花 8 轮的钱，而且第 11、12 轮反而退回 ok=False，
+        # 越磨越差。把判断权交出去就要真交，不能嘴上交、代码里留一手。
+        #
+        # ok=True 时残留的建议不丢：写进 text/*.md 的「看图自检」一节存档。
+        if v.get("ok"):
             return {"ok": True, "rounds": rd, "code": code, "model": resolved,
                     "png": png, "report": rep, "history": history,
-                    "critiques": critiques}
+                    "critiques": critiques,
+                    "problems": [p for p in (v.get("problems") or [])]}
 
         if rd >= MAX_ROUNDS:
             break
