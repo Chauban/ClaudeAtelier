@@ -25,10 +25,31 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AI_DIR = "deepseekv4flash"     # 与 agents/deepseek/config.py 的 AI_DIR 一致
 REPO = "Chauban/ClaudeAtelier"
-WORKFLOW = "deepseek-card.yml"
 STATE = os.path.join(ROOT, ".ds-fetch-state.json")
+
+
+def tenants():
+    """从 agents/deepseek/config.py 的注册表读出全部产线。
+
+    **别再写死。** 2026-08-12 之前这里硬编码着 deepseekv4flash + deepseek-card.yml，
+    于是 pro 接入之后它的原图一次都没被取回过 —— 而 artifact 只活 90 天，
+    过期就是永久丢失，且完全无声。加一家 AI 只在注册表加一行，这里自动跟上。
+
+    只读注册表这个常量，不 import 那个模块的其余部分（它会按 ATELIER_AI
+    绑定单个租户，正是这里不想要的）。
+    """
+    import ast
+    src = io.open(os.path.join(ROOT, "agents", "deepseek", "config.py"),
+                  encoding="utf-8").read()
+    tree = ast.parse(src)
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                getattr(t, "id", None) == "AI_REGISTRY" for t in node.targets):
+            reg = ast.literal_eval(node.value)
+            return [(k, v["dir"], v["workflow"]) for k, v in sorted(reg.items())
+                    if v.get("dir") and v.get("workflow")]
+    raise RuntimeError("在 config.py 里找不到 AI_REGISTRY")
 LOG = os.path.join(ROOT, "fetch-ds.log")
 MAX_ATTEMPTS = 3          # 同一个 run 累计失败这么多次就放弃，并明确报出来
 DOWNLOAD_RETRIES = 3      # 单次调用内的重试
@@ -74,8 +95,8 @@ def check_gh():
     return True
 
 
-def list_runs(limit=20):
-    r = gh(["run", "list", "--repo", REPO, "--workflow", WORKFLOW,
+def list_runs(workflow, limit=20):
+    r = gh(["run", "list", "--repo", REPO, "--workflow", workflow,
             "--status", "success", "--limit", str(limit),
             "--json", "databaseId,createdAt"])
     if r.returncode != 0:
@@ -140,12 +161,12 @@ def download(run_id, dest):
     return pngs
 
 
-def place(src):
-    """按文件名里的日期归到 Cards/{YYYY-MM}/。绝不覆盖。"""
+def place(src, ai_dir):
+    """按文件名里的日期归到 {ai_dir}/Cards/{YYYY-MM}/。绝不覆盖。"""
     base = os.path.basename(src)
     m = re.search(r"_(\d{4})-(\d{2})-\d{2}_", base)
     ym = "{}-{}".format(m.group(1), m.group(2)) if m else time.strftime("%Y-%m")
-    outdir = os.path.join(ROOT, AI_DIR, "Cards", ym)
+    outdir = os.path.join(ROOT, ai_dir, "Cards", ym)
     os.makedirs(outdir, exist_ok=True)
     dst = os.path.join(outdir, base)
     if os.path.exists(dst):
@@ -165,18 +186,40 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=20)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--ai", help="只取某一家（注册表里的 key，如 kimi）；默认全取")
     a = ap.parse_args()
 
     if not check_gh():
         return 2
 
-    state = load_state()
-    runs = list_runs(a.limit)
-    if not runs:
-        log("没有可取的成功运行")
-        return 0
+    todo = tenants()
+    if a.ai:
+        todo = [t for t in todo if t[0] == a.ai]
+        if not todo:
+            log("注册表里没有 {!r}".format(a.ai))
+            return 2
 
+    state = load_state()
     state.setdefault("skipped", {})
+    rc, total = 0, 0
+    for ai, ai_dir, workflow in todo:
+        log("---- {} （{} / {}）----".format(ai, ai_dir, workflow))
+        # run id 全局唯一，所以各产线共用一份状态文件不会串。
+        n = fetch_one(ai_dir, workflow, state, a)
+        total += n
+    save_state(state)
+    log("本次共取回 {} 张原图".format(total))
+    if state["failed"]:
+        log("累计放弃 {} 条运行：{}".format(
+            len(state["failed"]), ", ".join(sorted(state["failed"]))))
+    return rc
+
+
+def fetch_one(ai_dir, workflow, state, a):
+    runs = list_runs(workflow, a.limit)
+    if not runs:
+        log("  没有可取的成功运行")
+        return 0
     candidates = [r for r in runs
                   if str(r["databaseId"]) not in state["done"]
                   and str(r["databaseId"]) not in state["failed"]
@@ -193,11 +236,10 @@ def main():
             log("  run {} 没有发布（dry_run 演习），跳过".format(rid))
         # None = 查不出来，这次先放着，下次再判
 
-    log("成功运行 {} 条，其中真正发布过、待取 {} 条".format(len(runs), len(pending)))
+    log("  成功运行 {} 条，其中真正发布过、待取 {} 条".format(len(runs), len(pending)))
     if a.dry_run:
         for r in pending:
             log("  [dry-run] 会取 run {} ({})".format(r["databaseId"], r["createdAt"]))
-        save_state(state)
         return 0
 
     got = 0
@@ -216,7 +258,7 @@ def main():
                         .format(rid, n))
                 continue
             for p in pngs:
-                dst = place(p)
+                dst = place(p, ai_dir)
                 got += 1
                 log("  取回 {}  ({:.1f} MB)".format(
                     os.path.relpath(dst, ROOT), os.path.getsize(dst) / 1048576.0))
@@ -226,12 +268,7 @@ def main():
             shutil.rmtree(tmp, ignore_errors=True)
         save_state(state)
 
-    save_state(state)
-    log("本次取回 {} 张原图".format(got))
-    if state["failed"]:
-        log("累计放弃 {} 条运行：{}".format(
-            len(state["failed"]), ", ".join(sorted(state["failed"]))))
-    return 0
+    return got
 
 
 if __name__ == "__main__":

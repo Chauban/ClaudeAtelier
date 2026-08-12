@@ -52,6 +52,13 @@ def build_prompt(brief):
         "只输出可直接执行的 Python 代码，不要解释，不要 markdown 围栏。\n\n"
         "════════ 卡片创作章程 ════════\n" + charter +
         "\n\n════════ 环境说明 ════════\n" + appendix)
+    # 背景：给构图用的语感，**不是**卡面内容。刻意不把它放进渲染脚本的
+    # 全局命名空间（见 runner.py 传入的那几个键）—— 模型引用不到，也就
+    # 画不上去，比反复叮嘱可靠。
+    ctx = (brief.get("CONTEXT") or "").strip()
+    ctx_block = ("【背景】以下几句**不要印到卡上**，只用来帮你决定构图、"
+                 "意象和配色：\n{}\n\n".format(ctx)) if ctx else ""
+
     user = (
         "本次任务（编号、风格、语言、领域都是强制的，不许更换）：\n\n"
         "  流水号 SERIAL = {SERIAL}\n"
@@ -60,7 +67,11 @@ def build_prompt(brief):
         "  语言   {LANG}（代码 {LANG_CODE}）\n"
         "  领域   {TOPIC}\n\n"
         "金句 QUOTE（逐字使用，不要改写）：\n{QUOTE}\n\n"
-        "冷知识 FACT（已核实，逐字使用，不要改写）：\n{FACT}\n\n"
+        "冷知识 FACT（逐字使用，不要改写）：\n{FACT}\n\n"
+        # ctx_block 必须当**取值**传进去，不能拼进模板 ——
+        # 它是模型写的自由文本，里面一个 { 就会让 .format 炸掉。
+        "{CTX_BLOCK}"
+        "卡面上只出现 QUOTE、FACT、SERIAL、DATE 四样文字，别的都不要写上去。\n\n"
         "请写出完整的渲染脚本。记住：QUOTE / FACT / SERIAL / DATE / OUT_PATH "
         "已是脚本里的全局变量，直接引用，不要重新定义。"
         "最后必须 sf.save(OUT_PATH)。\n\n"
@@ -68,7 +79,7 @@ def build_prompt(brief):
         # 白费约 6 分钟。把这句放进首轮提示，能直接避免那一轮。
         "重要：不要在心里反复推敲版面。先定下画布尺寸和几个关键 y 坐标，"
         "直接开始写代码——写错了会有带坐标的报错告诉你怎么改，改起来比空想快得多。"
-    ).format(**brief)
+    ).format(CTX_BLOCK=ctx_block, **brief)
     return [{"role": "system", "content": sysmsg}, {"role": "user", "content": user}]
 
 
@@ -82,7 +93,14 @@ def run(brief, workdir, verbose=True):
     history = []
     improved = False      # 构图改进机会只给一次
     keep = None           # 已通过硬检查的那一版，改进失败时兜底
+    drawn = None          # **最后一版真的把图画出来了的**（哪怕没过检查）
     resolved = None       # 服务端回声的模型号，写进台账的 model 列
+
+    def _mtime():
+        try:
+            return os.path.getmtime(brief["OUT_PATH"])
+        except OSError:
+            return None
 
     for rd in range(1, MAX_ROUNDS + 1):
         if verbose:
@@ -128,6 +146,10 @@ def run(brief, workdir, verbose=True):
 
         # ---- 子进程执行 + 检查
         report_path = os.path.join(workdir, "report_r{}.json".format(rd))
+        # 记下执行前的 mtime：轮次耗尽时要发「最后一版画出来的图」，而磁盘上那张
+        # 必须和存档的手稿是同一轮的。只看文件存不存在会张冠李戴 ——
+        # 第 5 轮画出了图、第 6 轮崩在 save 之前，文件还是第 5 轮的。
+        before = _mtime()
         proc = subprocess.run(
             [sys.executable, os.path.join(HERE, "runner.py"),
              brief_path, code_path, report_path],
@@ -145,6 +167,9 @@ def run(brief, workdir, verbose=True):
         rep = json.load(io.open(report_path, encoding="utf-8"))
         history.append({"round": rd, "stage": rep["stage"],
                         "error": rep.get("error"), "metrics": rep.get("metrics")})
+        after = _mtime()
+        if after is not None and after != before:
+            drawn = {"rounds": rd, "code": code, "report": rep}
 
         if rep["ok"]:
             warns = (rep.get("metrics") or {}).get("warnings") or []
@@ -191,4 +216,22 @@ def run(brief, workdir, verbose=True):
         if verbose:
             print("  [改进未果，采用先前通过的那一版]")
         return keep
+
+    # 一版都没过硬检查，但磁盘上有图 —— 照发，打降级标记。
+    #
+    # 2026-08-12 由项目所有者决定改掉原来的「宁可空一班」：空卡在展墙上只是一个
+    # 「未出卡」的格子，什么都说明不了；一张有毛病的卡是实打实的证物，
+    # 而且毛病是**看得见**的，读者不会被误导。fail closed 那条原则仍然管着
+    # 「连图都没有」的情况 —— 那时确实只能空。
+    if drawn:
+        probs = ((drawn["report"].get("problems") or [])
+                 if isinstance(drawn.get("report"), dict) else [])
+        if verbose:
+            print("  [{} 轮都没过检查，采用最后一版画出来的图]"
+                  " —— 遗留 {} 项问题，会记进台账".format(MAX_ROUNDS, len(probs)))
+        return {"ok": True, "degraded": True, "rounds": drawn["rounds"],
+                "code": drawn["code"], "model": resolved,
+                "png": brief["OUT_PATH"], "report": drawn["report"],
+                "problems": probs, "history": history}
+
     return {"ok": False, "rounds": MAX_ROUNDS, "model": resolved, "history": history}

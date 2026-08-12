@@ -1,15 +1,26 @@
-"""证据闸门 —— 不带模型的确定性判定。
+"""证据闸门与内容卫生检查。
 
-章程第 3 节「核实不许跳过」是这个项目最贵、也最容易被悄悄优化掉的一步。
-交给模型自觉是没用的，所以做成结构上无法伪造：
+本模块现在有两个入口，用途完全不同：
 
-  模型必须交出 claims[]，每条含 {claim, url, evidence}，
-  其中 evidence 必须是该 url 页面正文里**逐字存在**的句子。
-  我们真去抓那个页面，做规范化子串比对。编不出来。
+  sanitize()  **在跑**。安全与章程条款，与「核实」无关：
+              source 必须是 http(s)、卡面文字不许夹代码围栏/链接/控制字符、
+              繁简字形与卡片语言相符（章程第 6 节改动 ④）。
 
-诚实的局限：这只证明「确有页面这么说」，不证明「那个页面是对的」。
-但这与 Claude 的 WebSearch 步骤实际提供的保证等价 —— 没有退步，
-而且从「靠自觉」变成了「被强制」。
+  check()     **已下线，代码保留**。原来的证据闸门：模型交出的每条 evidence
+              必须是该 url 页面正文里逐字存在的句子，我们真去抓页面做子串比对。
+
+为什么把 check() 下线（2026-08-12 由项目所有者决定）：
+
+  这个项目的看点是「同一道题，不同的手」。Claude 那条线的核实一直是模型
+  自我声明，没有任何机器闸门；只给走 agents/ 的产出方装上，就等于同一条
+  章程条款在两侧的强制力不同 —— 那本身是一种不公平，而不公平会污染对照。
+  核实的把关改由**事后**进行：另一个 AI 在页面上对已发布的卡逐条核实点评。
+
+  所以 claims[] 照旧收集、照旧存档（进 text/*.md），只是不再拦人。
+  真到了要核的时候，check() 原地就能用 —— 那正是给它准备的。
+
+另有一处诚实的局限，无论谁来核都成立：逐字比对只证明「确有页面这么说」，
+不证明「那个页面是对的」。
 """
 import re
 
@@ -106,8 +117,74 @@ def check_orthography(text, lang_code):
     return None
 
 
+def _has_control(s):
+    return any(ord(ch) < 9 or (13 < ord(ch) < 32) for ch in s)
+
+
+def sanitize(payload, lang_code=None, need_https=True):
+    """内容卫生 + 字形检查。通过返回报告 dict，不通过抛 VerifyError。
+
+    **这不是核实。**它一个字都不判断冷知识的真假，只管两件事：
+
+    一、安全。quote / fact / source 是从「读过网页正文」的那个会话里出来的，
+        而它们会印上卡面、写进 CSV、显示在网站上。所以：
+          · source 必须是 http(s) —— 顺手挡住 javascript: 之类
+          · 卡面文字里不许出现代码围栏、链接、控制字符
+        这条与核实闸门无关，闸门下线了它也必须留着。
+
+    二、章程第 6 节改动 ④ 的字形规定。它是明文条款，不是脚手架 ——
+        当初就是因为「靠自觉不行」才补进章程的（首张粤语卡同卡繁简混排）。
+
+    context 是给渲染会话看的背景，不上卡，所以只查控制字符与围栏，
+    不查链接（一个链接出现在文字副本里无害），也不查字形。
+    """
+    problems = []
+    for k in ("quote", "fact", "source"):
+        if not payload.get(k):
+            problems.append("缺字段 {}".format(k))
+    if problems:
+        raise VerifyError("研究结果结构不完整：{}".format("；".join(problems)))
+
+    src = str(payload["source"]).strip()
+    if need_https and not re.match(r"^https?://", src):
+        problems.append(
+            "source 必须是 http(s) 链接，拿到的是 {!r}。"
+            "（这条同时挡住 javascript: 之类的注入）".format(src[:60]))
+
+    for field in ("quote", "fact"):
+        v = str(payload[field])
+        if "```" in v or re.search(r"https?://", v):
+            problems.append("{} 里不该出现代码围栏或链接".format(field))
+        if _has_control(v):
+            problems.append("{} 里含控制字符".format(field))
+        if lang_code:
+            o = check_orthography(v, lang_code)
+            if o:
+                problems.append("{}：{}".format(field, o))
+
+    ctx = str(payload.get("context") or "")
+    if ctx:
+        if "```" in ctx:
+            problems.append("context 里不该出现代码围栏")
+        if _has_control(ctx):
+            problems.append("context 里含控制字符")
+
+    if problems:
+        raise VerifyError("内容检查未通过：\n  - " + "\n  - ".join(problems))
+
+    # claims 原样带出，只记不判 —— 事后核实的那个 AI 要的就是这份原始声明。
+    raw = payload.get("claims")
+    return {"sanitized": True,
+            "claims": raw if isinstance(raw, list) else [],
+            "unsupported_tokens": []}
+
+
 def check(payload, min_claims=1, need_https=True, lang_code=None):
-    """校验 research 交出来的结构。通过返回报告 dict，不通过抛 VerifyError。"""
+    """【已下线，保留备用】原证据闸门：校验 research 交出来的结构。
+
+    2026-08-12 起 research.py 不再调用它，改调 sanitize()。见模块开头的说明。
+    留着是因为事后核实点评要用同一套判定 —— 那时它原地可用，不必重写。
+    """
     problems, report = [], {"claims": [], "fetched": {}}
 
     for k in ("quote", "fact", "source", "claims"):

@@ -50,6 +50,15 @@ def make_webp(png_path, out_path):
     return out_path
 
 
+def _oneline(s):
+    """压成一行，供 markdown 列表项使用。
+
+    claims 里的 evidence 是网页原句，可能带换行、也可能带 markdown 记号 ——
+    直接塞进列表项会把版面撑坏。这里只做最低限度的整形：合并空白、砍掉围栏。
+    """
+    return re.sub(r"\s+", " ", str(s or "").replace("```", "")).strip()
+
+
 def make_text_md(meta, out_path):
     """文字副本。结构照搬现有 text/*.md，好让两边的文字页长得一样。"""
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -74,6 +83,69 @@ def make_text_md(meta, out_path):
     ]
     if meta.get("source"):
         lines += ["来源：{}".format(meta["source"]), ""]
+
+    # 背景：给渲染用的语感，不上卡。存档是因为它解释了这张卡为什么长这样。
+    if (meta.get("context") or "").strip():
+        lines += ["## 背景", "",
+                  "*（不印在卡面上，只用来帮渲染决定构图与意象。）*", "",
+                  meta["context"].strip(), ""]
+
+    # 引用：模型选题时声称的证据。**这是事后核实点评唯一的输入** ——
+    # 证据闸门 2026-08-12 下线，evidence.json 只活在 artifact 里（90 天，
+    # 且不在提交白名单内），不落到这里就等于没有。
+    claims = [c for c in (meta.get("claims") or []) if isinstance(c, dict)]
+    if claims:
+        lines += ["## 引用", "",
+                  "*（模型选题时声称的证据，**未经程序校验**，留作事后核实。）*", ""]
+        for i, c in enumerate(claims, 1):
+            claim = _oneline(c.get("claim"))
+            url = _oneline(c.get("url"))
+            ev = _oneline(c.get("evidence"))
+            lines.append("{}. {}".format(i, claim or "（未写明断言）"))
+            if url:
+                lines.append("   - 来源：<{}>".format(url))
+            if ev:
+                lines.append("   - 原句：{}".format(ev))
+        lines.append("")
+
+    # 看图判词：有视力那条线每一轮看完图说的话。**这是它视觉理解能力的证物** ——
+    # 它说 ok 而图上确实有毛病，日后对照得出来。盲线没有这一节（它没眼睛，
+    # 它的对应物是 lint 的读数），这一节空着本身就是产线形状的说明。
+    crits = [c for c in (meta.get("critiques") or []) if isinstance(c, dict)]
+    if crits:
+        lines += ["## 看图自检", "",
+                  "*（每轮渲染后模型自己看图给出的判词，原样存档。）*", ""]
+        for c in crits:
+            head = "**第 {} 轮** — ok={}".format(c.get("round", "?"), c.get("ok"))
+            if c.get("style_fidelity") is not None:
+                head += " · 风格贴合 {}/5".format(c["style_fidelity"])
+            lines += [head, ""]
+            for p in (c.get("problems") or []):
+                if isinstance(p, dict):
+                    lines.append("- {}：{}（建议：{}）".format(
+                        _oneline(p.get("where")) or "?",
+                        _oneline(p.get("what")) or "?",
+                        _oneline(p.get("fix")) or "—"))
+                else:
+                    lines.append("- {}".format(_oneline(p)))
+            if c.get("notes"):
+                lines.append("- *总评：{}*".format(_oneline(c["notes"])))
+            lines.append("")
+
+    # 降级发布时遗留的问题。发出去的图永久不可覆盖（web/* 一年 immutable），
+    # 所以这份记录必须和图同时落地，事后补不上。
+    if meta.get("flags"):
+        lines += ["## 降级发布", "",
+                  "标记：`{}`".format(meta["flags"]), ""]
+        probs = meta.get("problems") or []
+        if probs:
+            lines.append("发布时仍未解决的问题：")
+            lines.append("")
+            for p in probs:
+                lines.append("- {}".format(_oneline(
+                    p if not isinstance(p, dict) else p.get("what") or p)))
+            lines.append("")
+
     lines += [
         "---",
         "图片：[原图](../../Cards/{}) ｜ [压缩版](../../web/{})".format(
@@ -100,6 +172,7 @@ def append_ledger(meta):
         "research_attempts": meta.get("research_attempts", ""),
         "duration_s": meta.get("duration_s", ""),
         "sha256": meta.get("sha256", ""),
+        "flags": meta.get("flags", ""),
     })
 
 

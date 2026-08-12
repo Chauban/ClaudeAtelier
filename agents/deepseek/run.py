@@ -19,8 +19,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import compose        # noqa: E402
-import config         # noqa: E402
+import compose         # noqa: E402
+import compose_vision  # noqa: E402
+import config          # noqa: E402
 import ledger         # noqa: E402
 import publish        # noqa: E402
 import research       # noqa: E402
@@ -129,19 +130,38 @@ def main():
     payload, report = research.run(brief)
     brief["QUOTE"] = payload["quote"]
     brief["FACT"] = payload["fact"]
+    # 背景：只进渲染提示词和文字副本，不上卡、不进台账（台账扛不动长文本）。
+    brief["CONTEXT"] = payload.get("context") or ""
     brief["OUT_PATH"] = png_path.replace("\\", "/")
     print("  金句：{}".format(payload["quote"][:60]))
     print("  冷知识：{}".format(payload["fact"][:60]))
     print("  来源：{}".format(payload["source"]))
 
     # ---------------------------------------------------------- 二、渲染
-    print("\n[2/3] 渲染")
-    res = compose.run(brief, os.path.join(a.out, "work"))
+    # 走哪条路由「这只手看不看得见图」决定，不由产线决定：
+    #   看不见 -> compose.py        受控画布抛错 + 文字版画面报告 + lint
+    #   看得见 -> compose_vision.py 裸 Pillow，画完把图发回去让它自己看
+    # 后者刻意不带任何画面检查 —— 那些是代眼睛的东西，而「它看不看得懂自己
+    # 画的图」正是要展出的。
+    renderer = compose_vision if config.VISION else compose
+    print("\n[2/3] 渲染（{}）".format(
+        "看图自检" if config.VISION else "盲画 + 受控画布"))
+    res = renderer.run(brief, os.path.join(a.out, "work"))
     if not res.get("ok"):
-        print("\n渲染在 {} 轮内没能通过检查。本班次不发布任何东西。".format(res["rounds"]))
-        status("render-failed")
+        # 只剩「连图都没有」这一种失败了 —— 那时确实没东西可发。
+        print("\n渲染在 {} 轮内一张图都没画出来。本班次不发布任何东西。".format(
+            res["rounds"]))
+        status("no-image")
         return 1
-    print("  {} 轮通过：{}".format(res["rounds"], png_path))
+
+    # 降级发布：过不了检查也照发，但必须说出来。
+    # 空卡在展墙上只是一个格子，什么都说明不了；一张有毛病的卡是证物，
+    # 而且毛病看得见，读者不会被误导。
+    flags = []
+    if res.get("degraded"):
+        flags.append("self-unsatisfied" if config.VISION else "render-degraded")
+    print("  {} 轮{}：{}".format(
+        res["rounds"], "（降级发布）" if flags else "通过", png_path))
 
     # ---------------------------------------------------------- 三、产出
     print("\n[3/3] 产出")
@@ -153,6 +173,17 @@ def main():
         "filename": brief["filename"],
         "quote": payload["quote"], "fact": payload["fact"],
         "source": payload["source"],
+        # 只进 text/*.md，不进台账。claims 尤其重要：证据闸门下线之后，
+        # 这份原始声明是事后核实点评唯一的输入，而 evidence.json 只活在
+        # artifact 里（90 天，且不在白名单内进不了仓库）。
+        "context": brief["CONTEXT"],
+        "claims": report.get("claims") or [],
+        # 看图判词：有视力那条线每轮说的话。这是它视觉理解能力的直接证物 ——
+        # 它说没问题而图上确实有问题，对照得出来。存进 text/*.md。
+        "critiques": res.get("critiques") or [],
+        # 降级时未解决的问题（盲线来自 lint，明线来自它自己的判词）
+        "problems": res.get("problems") or [],
+        "flags": "|".join(flags),
         # 服务端回声的具体版本优先；拿不到才退回请求时用的别名。
         "model": res.get("model") or config.MODEL,
         # ---- 过程记录
@@ -191,10 +222,11 @@ def main():
     print("  文字 {}".format(md_rel))
     print("  手稿 {}".format(code_rel))
     print("  台账 {}".format(publish.append_ledger(meta)))
-    print("  过程 第 {} 轮通过 · 核实第 {} 次过 · 用时 {}s · {}".format(
+    print("  过程 第 {} 轮出图 · 选题第 {} 次过 · 用时 {}s · {}{}".format(
         meta["rounds"], meta["research_attempts"],
-        meta["duration_s"], meta["model"]))
-    status("published")
+        meta["duration_s"], meta["model"],
+        " · flags={}".format(meta["flags"]) if meta["flags"] else ""))
+    status("published-degraded" if flags else "published")
     return 0
 
 

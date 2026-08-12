@@ -27,12 +27,14 @@ echo.
 echo   Two tasks will be created, matching the crons they front:
 echo     1) 00:00 then every 4 hours  - deepseek-card.yml
 echo     2) 00:20 then every 4 hours  - deepseek-pro-card.yml
+echo     3) 00:40 then every 4 hours  - kimi-card.yml
 echo.
 echo   The crons stay in place as a backstop. If this machine is
 echo   asleep or gh is logged out, the card is still made, just
 echo   late - the same as before these tasks existed.
 echo.
-echo   Firing at :00 and :20 is deliberate: the Claude agent owns
+echo   Firing at :00, :20 and :40 is deliberate: the Claude agent
+echo   owns
 echo   :09 - :17 and the sync task owns :30. This script touches
 echo   no file inside the repo, so it cannot collide with them.
 echo.
@@ -46,11 +48,13 @@ pause
 
 schtasks /Create /TN "ClaudeAtelier-Trigger-Flash" /TR "\"%SCRIPT%\" deepseek-card.yml"     /SC DAILY /ST 00:00 /RI 240 /DU 24:00 /F
 schtasks /Create /TN "ClaudeAtelier-Trigger-Pro"   /TR "\"%SCRIPT%\" deepseek-pro-card.yml" /SC DAILY /ST 00:20 /RI 240 /DU 24:00 /F
+schtasks /Create /TN "ClaudeAtelier-Trigger-Kimi"  /TR "\"%SCRIPT%\" kimi-card.yml"         /SC DAILY /ST 00:40 /RI 240 /DU 24:00 /F
 
 echo.
 echo ---- registered tasks ----
 schtasks /Query /TN "ClaudeAtelier-Trigger-Flash"
 schtasks /Query /TN "ClaudeAtelier-Trigger-Pro"
+schtasks /Query /TN "ClaudeAtelier-Trigger-Kimi"
 
 echo.
 echo   Done. Log file: trigger.log
@@ -62,5 +66,6 @@ echo.
 echo   To uninstall:
 echo     schtasks /Delete /TN "ClaudeAtelier-Trigger-Flash" /F
 echo     schtasks /Delete /TN "ClaudeAtelier-Trigger-Pro" /F
+echo     schtasks /Delete /TN "ClaudeAtelier-Trigger-Kimi" /F
 echo.
 pause

@@ -108,7 +108,10 @@ jobs:
           if-no-files-found: warn
 
       - name: 上传发布物
-        if: steps.gen.outputs.status == 'published' || steps.gen.outputs.status == 'dry-run'
+        # published-degraded 也要发：轮次耗尽但画出了图的那一版照常上线，
+        # 只是台账 flags 列会写明它仍有未解决的问题。漏了这个状态，降级的卡会被
+        # 静默丢掉 —— 而那正好是最值得展出的一批。
+        if: steps.gen.outputs.status == 'published' || steps.gen.outputs.status == 'published-degraded' || steps.gen.outputs.status == 'dry-run'
         uses: actions/upload-artifact@v4
         with:
           name: publish-${{ github.run_id }}
@@ -131,7 +134,10 @@ jobs:
     # （webp、文字副本、row.json 都会生成，只是不写台账），publish job 自己
     # 看不出这是演习 —— 少了这一行，一次「只想试试」的触发会把卡真发上线，
     # 而 web/* 是一年 immutable，发出去就撤不回来。
-    if: inputs.dry_run != true && needs.generate.outputs.status == 'published'
+    if: >-
+      inputs.dry_run != true &&
+      (needs.generate.outputs.status == 'published' ||
+       needs.generate.outputs.status == 'published-degraded')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

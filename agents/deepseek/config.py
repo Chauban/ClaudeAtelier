@@ -13,14 +13,59 @@ import re
 #          已发布的行里存着它，改了前端就认不出历史卡片。
 # label —— 展示名，可以改。
 # dir   —— 顶层目录，各家完全自理。Claude 是在位者，留在根目录不进这张表。
+# provider —— 走哪个 clients/*.py。同厂商的多个模型共用一个。
+# vision  —— **这只手看不看得见自己画的图**。它决定的不是「能力」而是「发什么脚手架」：
+#            看不见的那几家配一整套代眼睛的东西（受控画布当场抛错、文字版画面报告、
+#            报错回灌循环、渲染后 lint）；看得见的一样都不发 —— 那些东西是在替它看，
+#            而「它看不看得懂自己画的图」恰恰是这个博物馆要展出的东西。
+#            2026-08-12 由项目所有者定的原则：**脚手架按能力缺口配发，不按产线配发。**
 AI_REGISTRY = {
     "flash": {
         "key": "deepseek", "label": "DeepSeek",
         "dir": "deepseekv4flash", "model": "deepseek-v4-flash",
+        "workflow": "deepseek-card.yml",
+        "provider": "deepseek", "vision": False,
     },
     "pro": {
         "key": "deepseek-pro", "label": "DeepSeek Pro",
         "dir": "deepseekv4pro", "model": "deepseek-v4-pro",
+        "workflow": "deepseek-pro-card.yml",
+        "provider": "deepseek", "vision": False,
+    },
+    "kimi": {
+        # key 带版本号是刻意的：key 写进台账、定了不能改，而模型会换代。
+        # K4 上线时它是另一只手，另开一行 —— "deepseek" 那行没带版本是先来者
+        # 的历史遗留，别照抄。
+        "key": "kimi-k3", "label": "Kimi K3",
+        "dir": "kimik3", "model": "kimi-k3",
+        "workflow": "kimi-card.yml",
+        "provider": "kimi", "vision": True,
+    },
+}
+
+# 厂商差异。**只有接口形状写在这里，创作要求一个字都不许进来。**
+PROVIDERS = {
+    "deepseek": {
+        "api_base": "https://api.deepseek.com",
+        "key_envs": ("DEEPSEEK_API_KEY",),
+        "token_param": "max_tokens",
+        # 实测：给 40000 烧满 40000，给 64000 烧满 64000 —— 复杂立体风格的首轮
+        # 会把预算全部用于推理、可见输出为零。也没有可用的开关：reasoning_effort
+        # 与 enable_thinking 都被接受却被静默忽略。所以按上限给。
+        "max_tokens": 64000,
+        "reasoning_param": None,        # 给了也没用，别发
+    },
+    "kimi": {
+        # 注意：这个 base 自带 /v1，client 只补 /chat/completions，别再拼一次。
+        "api_base": "https://api.moonshot.cn/v1",
+        # 官方文档用 MOONSHOT_API_KEY；本项目统一叫 KIMI_API_KEY，两个都认。
+        "key_envs": ("KIMI_API_KEY", "MOONSHOT_API_KEY"),
+        # max_tokens 已弃用，K3 用 max_completion_tokens（默认 131072，上限 1048576）
+        "token_param": "max_completion_tokens",
+        "max_tokens": 131072,
+        # K3 常开思考，但**它真的认这个参数**（DeepSeek 是接受了静默忽略）。
+        # 写代码轮给 low 避免推理烧光预算，选题与看图自检给 high。
+        "reasoning_param": "reasoning_effort",
     },
 }
 AI = os.environ.get("ATELIER_AI", "flash")
@@ -30,25 +75,45 @@ if AI not in AI_REGISTRY:
 _ME = AI_REGISTRY[AI]
 
 # ---------------------------------------------------------------- 模型
-API_BASE = "https://api.deepseek.com"
+PROVIDER = _ME["provider"]
+if PROVIDER not in PROVIDERS:
+    raise SystemExit("provider={!r} 没有对应的 clients 实现".format(PROVIDER))
+_P = PROVIDERS[PROVIDER]
+
+# 这只手看不看得见自己画的图。下游据此选走哪条渲染路径。
+VISION = bool(_ME.get("vision"))
+
+API_BASE = os.environ.get("ATELIER_API_BASE", _P["api_base"])
+KEY_ENVS = _P["key_envs"]
+TOKEN_PARAM = _P["token_param"]
+REASONING_PARAM = _P["reasoning_param"]
 # DS_MODEL 仍可覆盖，用于临时试新模型号而不动注册表。
 MODEL = os.environ.get("DS_MODEL", _ME["model"])
 
-# 实测：给 40000 烧满 40000，给 64000 烧满 64000 —— 复杂立体风格的首轮会把
-# 预算全部用于推理、可见输出为零。也没有可用的开关：reasoning_effort=low 与
-# enable_thinking=False 都被接受却被静默忽略。所以按上限给，并靠 compose 里的
-# 「空输出识别 + 带具体反馈重试」兜底。
-MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "64000"))
+MAX_TOKENS = int(os.environ.get("MAX_TOKENS", str(_P["max_tokens"])))
 HTTP_TIMEOUT = 1200          # 实测单次最长 573s，留足余量
 HTTP_RETRIES = 3             # 撞到过 IncompleteRead，不重试就报废整张卡
 
 # ---------------------------------------------------------------- 轮次上限
-MAX_ROUNDS = int(os.environ.get("MAX_ROUNDS", "7"))        # 渲染返工
+# 盲模型 7 轮：它每一轮都在靠报错摸索，轮数是实打实的成本。
+# 有视力的 12 轮：Claude 那条线的规矩是「有问题改脚本重渲染，直到画面干净」，
+# 根本没有显式上限。卡在 7 轮就是规则不对等 —— 上限要宽到实际咬不到，
+# 只当跑飞了的刹车用。真实轮数照旧写进台账 rounds 列，谁改了几轮看得见。
+MAX_ROUNDS = int(os.environ.get("MAX_ROUNDS", "12" if VISION else "7"))
+
 MAX_RESEARCH_ATTEMPTS = int(os.environ.get("MAX_RESEARCH_ATTEMPTS", "4"))
 MAX_SEARCH_CALLS = int(os.environ.get("MAX_SEARCH_CALLS", "12"))   # 软上限
 MAX_SEARCH_HARD = 20                                               # 硬上限
 SEARCH_RESULTS = 8           # 每次搜索取几条（首条常是噪音，别只看一条）
 SEARCH_SPACING = 2.0         # DDG 调用间隔秒数，避免被限流
+
+# ---------------------------------------------------------------- 看图自检
+# 只有 VISION 那几家用得上。回灌给模型的图要缩到这个宽度：原图是 scale=2 的
+# 2000×3000+，直接发既贵又没必要（K3 收到 4K，但一张卡的毛病在 1024 宽上全看得见）。
+VISION_FEEDBACK_WIDTH = int(os.environ.get("VISION_FEEDBACK_WIDTH", "1024"))
+# JPEG 质量。**不敢再压**：压糊了细字，模型会把我们的压缩失真当成自己画的毛病，
+# 那等于伪造证据 —— 而这条线的全部意义就是看它能不能看出真毛病。
+VISION_FEEDBACK_QUALITY = 88
 
 # ---------------------------------------------------------------- 身份
 # 全部取自上面的注册表。下游代码照旧读 config.AI_KEY / AI_DIR，一处没改。
@@ -83,11 +148,19 @@ LEDGER_NAME = "cards-index.csv"
 #                     核实和渲染之前就取好了），所以完工时刻 = 两者相加。
 #   sha256            原图 PNG 的指纹。原图不进仓库、只在本地和 artifact 里，
 #                     指纹是它唯一进得了 git 的部分 —— 日后校验副本靠它。
+#   flags             这张卡是不是降级发布的，空 = 正常。多个用 | 分隔。
+#                     2026-08-12 起「渲染过不了检查也照发」（宁可展出一张有毛病的
+#                     卡，也不空一班：空卡在展墙上只是个格子，什么都说明不了），
+#                     所以必须有个地方说出来它过没过 —— 否则展墙分不出
+#                     「没出问题」和「没被检查」。
+#                     render-degraded  盲线：轮次耗尽，lint 仍有未解决的问题
+#                     self-unsatisfied 明线：它自己看过图，说还有毛病
 #
 # 加列只能加在末尾，且 ledger.ensure_header() 会把已有台账的表头就地补齐。
 COLUMNS = ["no", "datetime", "S", "style", "K", "topic", "L", "lang",
            "filename", "quote", "fact", "source", "ai", "model",
-           "slot", "rounds", "research_attempts", "duration_s", "sha256"]
+           "slot", "rounds", "research_attempts", "duration_s", "sha256",
+           "flags"]
 
 # ---------------------------------------------------------------- 时间
 # runner 跑在 UTC，但台账 datetime 必须写本地时间（UTC+8），

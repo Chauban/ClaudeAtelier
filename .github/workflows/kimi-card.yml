@@ -1,0 +1,208 @@
+# Kimi K3 生卡。
+#
+# 与 deepseek-*.yml 是同一套代码的又一个租户，区别只有 ATELIER_AI=kimi 和 key 的
+# 名字：身份、目录、模型号、厂商、**看不看得见图**全部由
+# agents/deepseek/config.py 的注册表给出。
+#
+# 这条线与前两条最大的不同在代码里而不在这个文件里：K3 有视觉能力，所以它走
+# compose_vision.py —— 裸 Pillow 画图、画完把图发回去让它自己看、自己改，
+# 没有受控画布、没有 lint、没有任何替它看的东西。
+# 那些脚手架是发给看不见图的模型的补偿，发给看得见的就成了代它答题，
+# 而「它看不看得懂自己画的图」正是这条线要展出的东西。
+#
+# 凭据隔离与前两条完全相同，两条最要紧的规矩：
+#   generate 步骤 permissions: {} 且 persist-credentials: false
+#     —— 模型写的渲染代码就在这台 VM 上跑，任何 token 留在 .git/config 都是外泄路径
+#   publish 步骤才拿 contents:write，且只跑仓库自有代码
+name: kimi-card
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只生成不发布"
+        type: boolean
+        default: false
+      force_style:
+        description: "指定风格 S（留空则按规则抽取）"
+        type: string
+        default: ""
+  # cron 是**兜底**，不是主触发器 —— 准点由本机计划任务
+  # ClaudeAtelier-Trigger-Kimi 发 workflow_dispatch 负责（见 CLAUDE.md）。
+  # schedule 走 GitHub 明说「高负载时延迟、不保证」的共享队列，实测迟到到 2h33m。
+  #
+  # 与 Claude、flash、pro 同一网格，比 flash 晚 40 分钟起跑。这 40 分钟是弱理由
+  # （少撞一次并发而已），不是保护 —— 真正让错开安全的是 K/L 按班次边界算
+  # （ledger.slot_now），迟到多久都落回同一班、拿到同一道题。
+  schedule:
+    - cron: '40 */4 * * *'     # UTC
+    - cron: '55 */4 * * *'     # 补位；新鲜度守卫会让它在正常时空跑
+
+permissions: {}
+
+concurrency:
+  group: kimi-card
+  cancel-in-progress: false      # 排队而不是取消：中途被杀会留下没人认领的原图
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.gen.outputs.status }}
+    # 比盲线宽：轮次上限 12（对齐 Claude「改到干净为止」的自由度），
+    # 而且每一轮出图之后还要多一次带图的自检调用。
+    timeout-minutes: 90
+    permissions: {}              # 无写权限、无 token
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false     # ← 关键，见文件头注释
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 装依赖与字体
+        # 字体必须与其他产线**逐字相同**：同一个 S 两边能用的字不一样，
+        # 就是实打实的创作不公平，而且完全无声。
+        run: |
+          python -m pip install --quiet pillow numpy fonttools ddgs trafilatura zhconv
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-cjk-extra \
+                                      fonts-dejavu-core fonts-dejavu-extra
+          fc-cache -f > /dev/null
+
+      - name: 字体自检
+        # 这条线的模型自己拼绝对路径（没有 fonts.py 那层解析），所以这一步是
+        # 在**替我们**确认那些路径确实存在 —— 报告里 serif-cjk 那两行尤其要看。
+        run: python agents/deepseek/fonts.py
+
+      - name: 生成
+        id: gen
+        env:
+          ATELIER_AI: kimi
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "${{ inputs.force_style }}" ]; then ARGS="$ARGS --force-style ${{ inputs.force_style }}"; fi
+          python agents/deepseek/run.py --out out $ARGS
+          # 「本班不该出卡」与「本班出卡失败」必须分得开，否则新鲜度跳过
+          # 会被 if-no-files-found: error 误判成失败。
+          echo "status=$(cat out/status.txt 2>/dev/null || echo unknown)" >> "$GITHUB_OUTPUT"
+
+      # 原图先落袋。丢原图违反「原图必须留在本地」这条第一约束，丢台账行不会。
+      - name: 上传原图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-${{ github.run_id }}
+          path: out/original/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: 上传发布物
+        # published-degraded 也要发：轮次耗尽但画出了图的那一版照常上线，
+        # 只是台账 flags 列会写明它自己都不满意。漏了这个状态，降级的卡会被
+        # 静默丢掉 —— 而那正好是最值得展出的一批。
+        if: steps.gen.outputs.status == 'published' || steps.gen.outputs.status == 'published-degraded' || steps.gen.outputs.status == 'dry-run'
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: out/publish/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: 上传排障材料
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ github.run_id }}
+          path: out/work/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  publish:
+    needs: generate
+    # dry_run 时绝不能发布。run.py 在 --dry-run 下**照样**产出 out/publish/，
+    # publish job 自己看不出这是演习 —— 少了这一行，一次「只想试试」的触发
+    # 会把卡真发上线，而 web/* 是一年 immutable，发出去就撤不回来。
+    if: >-
+      inputs.dry_run != true &&
+      (needs.generate.outputs.status == 'published' ||
+       needs.generate.outputs.status == 'published-degraded')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write            # 仅此处，且这一段只跑仓库自有代码
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: incoming
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 落地并校验提交路径
+        env:
+          ATELIER_AI: kimi
+        run: python agents/deepseek/commit_publish.py --incoming incoming
+
+      - name: 推送
+        id: push
+        env:
+          ATELIER_AI: kimi
+        run: |
+          git config user.name  "kimi-card[bot]"
+          git config user.email "kimi-card@users.noreply.github.com"
+          git add kimik3
+          python agents/deepseek/commit_publish.py --check-staged --incoming incoming
+          if git diff --cached --quiet; then
+            echo "没有新内容"; exit 0
+          fi
+          git commit -q -m "$(cat incoming/commit_msg.txt)"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD && exit 0
+            echo "推送失败，重试 $i"; sleep 5
+          done
+          exit 1
+
+  # 失败告警。这个项目的历史教训是「失败是无声的」——
+  # issues:write 只给这一段，且它不执行任何模型产物。
+  notify:
+    needs: [generate, publish]
+    if: always() && (needs.generate.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: 开或更新告警 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          G: ${{ needs.generate.result }}
+          P: ${{ needs.publish.result }}
+        run: |
+          TITLE="kimi-card 运行失败"
+          BODY="$(date -u '+%Y-%m-%d %H:%M UTC')  generate=$G  publish=$P
+          $RUN_URL
+
+          排障提示：generate 失败多半是 12 轮都没画出一张图、搜索被限流、
+          或 KIMI_API_KEY 没配（见 out/work 排障 artifact）；
+          注意「画得不好」不再算失败 —— 那会照常发布并在台账 flags 列标记。
+          publish 失败多半是提交路径白名单不匹配或推送冲突。"
+          NUM=$(gh issue list --repo "$REPO" --search "$TITLE in:title" \
+                  --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$REPO" --body "$BODY"
+            echo "已在 issue #$NUM 追加评论"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+            echo "已新建告警 issue"
+          fi

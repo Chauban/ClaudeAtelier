@@ -387,6 +387,27 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 .card:focus-visible{outline:none}
 .card:focus-visible .card-inner{box-shadow:0 0 0 2px var(--accent), var(--shadow-card-hi)}
 
+/* 降级发布角标。刻意**常驻**、不跟着 .plate 在 hover 时才出现 ——
+   「这张卡没过检查」是展签信息，不是悬停彩蛋。
+   做得克制（小、半透明、不抢画面）：它是注解，不是判决。 */
+.flag{
+  position:absolute;top:8px;right:8px;z-index:2;
+  display:flex;gap:4px;pointer-events:none;
+}
+.flag b{
+  font-weight:500;font-size:9.5px;letter-spacing:.08em;
+  padding:2px 6px;border-radius:99px;
+  background:#00000059;color:#ffffffc4;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border:1px solid #ffffff2e;
+}
+.detail-flag{
+  margin:10px 0 0;padding:9px 12px;border-radius:8px;
+  background:var(--fg-05,#8881120f);border:1px solid var(--line,#8881);
+  font-size:12px;line-height:1.6;color:var(--fg-6,#888)
+}
+.detail-flag b{color:var(--fg-8,#aaa);font-weight:600}
+
 .empty{text-align:center;padding:90px 0;color:var(--fg-4);font-size:14px}
 .empty b{display:block;color:var(--fg-2);font-size:16px;margin-bottom:8px;font-weight:400}
 
@@ -798,6 +819,8 @@ const LEDGERS = [
      顺序即对照展墙的列序，加在末尾，已有的列位不动。 */
   { ai:"deepseek-pro", label:"DeepSeek Pro", prefix:"NO.", model:"",
     base:"deepseekv4pro/",    url:"deepseekv4pro/Cards/cards-index.csv" },
+  { ai:"kimi-k3",  label:"Kimi K3",  prefix:"NO.", model:"",
+    base:"kimik3/",           url:"kimik3/Cards/cards-index.csv" },
 ];
 const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
@@ -1002,6 +1025,11 @@ function build(payloads){
         origin: ORIGIN_BASE ? ORIGIN_BASE + encPath(file) : "",
         txt: encPath(P.base + "text/" + file.replace(/\.png$/i, ".md")),
         quote: g("quote"), fact: g("fact"), source: g("source"),
+        /* 降级发布标记。空 = 正常出卡；有值说明这张是「没过检查也照发」的那种。
+           2026-08-12 起各产线不再空班：宁可展出一张有毛病的卡，也不留一个
+           什么都说明不了的空格子。但**必须说出来它没过** —— 否则展墙分不出
+           「没出问题」和「没被检查」。多个标记用 | 分隔。 */
+        flags: (g("flags") || "").split("|").filter(Boolean),
         ratio: 0.6, color: "#3a3a42", loaded: false
       });
     });
@@ -1286,6 +1314,21 @@ rail.addEventListener("keydown", e => {
 /* ============================================================
    展墙渲染
    ============================================================ */
+/* 降级标记的人话。台账里存的是机器码，展墙上要说人听得懂的话，
+   而且要说清**是谁在不满意** —— 一条产线自己看着图说不行，和一堆规则说不行，
+   是两件不同的事，混成一个「有问题」标签就把信息抹平了。 */
+const FLAG_TEXT = {
+  "self-unsatisfied": ["自评未过", "这条产线的模型看得见自己画的图。它看过之后仍然认为这张卡有问题，但轮次已经用完 —— 这一版是它最后交出来的。"],
+  "render-degraded":  ["自检未过", "这条产线的模型看不见自己画的图，靠渲染后的机械检查把关。轮次用完时仍有未通过的检查项 —— 这一版是它最后画出来的。"],
+};
+function flagInfo(f){ return FLAG_TEXT[f] || [f, ""]; }
+function flagBadges(c){
+  if (!c.flags || !c.flags.length) return "";
+  return `<div class="flag">` +
+    c.flags.map(f => `<b title="${esc(flagInfo(f)[1])}">${esc(flagInfo(f)[0])}</b>`).join("") +
+    `</div>`;
+}
+
 function renderCards(){
   grid.innerHTML = "";
   CARDS.forEach((c, i) => {
@@ -1298,6 +1341,7 @@ function renderCards(){
       `<div class="card-inner">
          <div class="skel"></div>
          <img loading="lazy" decoding="async" src="${c.thumb}" alt="${esc(c.noPad + " " + c.style)}">
+         ${flagBadges(c)}
          <div class="plate">
            <div class="no">${c.noPad}</div>
            <div class="st">${esc(c.style)}</div>
@@ -1614,6 +1658,13 @@ function open(i){
      <blockquote class="b-quote">${esc(c.quote)}</blockquote>
      <div class="b-label">${esc(labelFor("topic", c.kTopic))}</div>
      <p class="b-fact">${esc(c.fact)}</p>
+     ${(c.flags && c.flags.length)
+        ? `<div class="detail-flag">` + c.flags.map(f => {
+              const [t, why] = flagInfo(f);
+              return `<b>${esc(t)}</b>　${esc(why)}`;
+            }).join("<br>") +
+          `<br><span style="opacity:.75">具体问题见文字副本。</span></div>`
+        : ``}
      <div class="b-foot">
        <div class="b-meta">
          <!-- 谁做的，是这个博物馆最要紧的一条信息，不该藏在 tooltip 里 -->
