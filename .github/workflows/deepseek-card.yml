@@ -81,6 +81,14 @@ jobs:
         # ubuntu-latest 的打包方式不保证一致。这里当场解析并断言覆盖。
         run: python agents/deepseek/fonts.py
 
+      - name: 凭据自检
+        # 一次最小请求就分清「key 错了 / 站点错了 / 余额不够」，不用等到 research
+        # 深处才炸出一行 401。只打印长度和格式，绝不打印 key 的任何片段 ——
+        # 这个仓库是公开的，日志跟着公开。
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python agents/deepseek/preflight.py
+
       - name: 生成
         id: gen
         env:
