@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **70** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **71** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0071 · 装饰艺术 · 意大利文
+
+<img src="web/2026-08/NO.0071_2026-08-13_S15-装饰艺术_IT.webp" width="320">
+
+> Ciò che cercavamo non c'era. Ma il vuoto che aveva lasciato aveva la forma esatta di una legge nuova.（我们苦苦寻找的东西并不存在。可它留下的那处空缺，恰好是一条新定律的形状。）
+
+**天文与宇宙** — Il 31 dicembre 1859 Urbain Le Verrier percorse a piedi gli ultimi venti chilometri fino a Orgères-en-Beauce per interrogare un medico di campagna che diceva di aver visto un pianeta passare davanti al Sole. Gli credette: lo chiamò Vulcano e ottenne per lui la Legion d'onore. Era quasi certamente una macchia solare. I 43 secondi d'arco per secolo dell'orbita di Mercurio restarono inspiegati fino al 1915, quando la relatività generale li calcolò esattamente — senza bisogno di alcun pianeta.（1859年12月31日，勒威耶徒步走完最后二十公里，赶到奥尔热尔昂博斯，只为盘问一位自称看见行星掠过太阳的乡村医生。他信了：把那颗星命名为「祝融星」，还替医生请来了荣誉军团勋章。那几乎肯定只是一个太阳黑子。水星轨道每世纪43角秒的偏差一直无解，直到1915年，广义相对论把它精确算了出来——根本不需要那颗行星。）
+
+`2026-08-13 00:09` ｜ [原图](Cards/2026-08/NO.0071_2026-08-13_S15-装饰艺术_IT.png) ｜ [文字](text/2026-08/NO.0071_2026-08-13_S15-装饰艺术_IT.md)
 
 ---
 
@@ -84,7 +97,7 @@
 ---
 
 
-### NO.0064 · 3D 玻璃水晶折射 · 法文
+### NO.0064 · 3D · 法文
 
 <img src="web/2026-08/NO.0064_2026-08-11_S39-玻璃水晶折射_FR.webp" width="320">
 
@@ -175,7 +188,7 @@
 ---
 
 
-### NO.0057 · 3D 体积光与景深 · 日文
+### NO.0057 · 3D · 日文
 
 <img src="web/2026-08/NO.0057_2026-08-10_S47-体积光景深_JA.webp" width="320">
 
@@ -188,7 +201,7 @@
 ---
 
 
-### NO.0056 · 3D 立體擠出文字 · 繁體中文（台灣）
+### NO.0056 · 3D · 繁體中文（台灣）
 
 <img src="web/2026-08/NO.0056_2026-08-10_S40-立體擠出字_ZH-TW.webp" width="320">
 
@@ -240,7 +253,7 @@
 ---
 
 
-### NO.0052 · 装饰艺术 Art Deco · 德文
+### NO.0052 · 装饰艺术 · 德文
 
 <img src="web/2026-08/NO.0052_2026-08-09_S15-装饰艺术_DE.webp" width="320">
 
@@ -253,7 +266,7 @@
 ---
 
 
-### NO.0051 · 3D 堆叠透视卡片 · 繁體中文（香港）
+### NO.0051 · 3D · 繁體中文（香港）
 
 <img src="web/2026-08/NO.0051_2026-08-09_S46-3D堆疊卡片_ZH-HK.webp" width="320">
 
@@ -279,7 +292,7 @@
 ---
 
 
-### NO.0049 · 3D 多层纸雕浮雕 · 英文
+### NO.0049 · 3D · 英文
 
 <img src="web/2026-08/NO.0049_2026-08-08_S42-多层纸雕浮雕_EN.webp" width="320">
 
@@ -318,7 +331,7 @@
 ---
 
 
-### NO.0046 · 3D 玻璃水晶折射 · 韩文
+### NO.0046 · 3D · 韩文
 
 <img src="web/2026-08/NO.0046_2026-08-08_S39-3D玻璃折射_KO.webp" width="320">
 
@@ -591,7 +604,7 @@
 ---
 
 
-### NO.0025 · 波普艺术 Pop Art · 韩文
+### NO.0025 · 波普艺术 · 韩文
 
 <img src="web/2026-08/NO.0025_2026-08-04_S26-波普艺术_KO.webp" width="320">
 
@@ -656,7 +669,7 @@
 ---
 
 
-### NO.0020 · 蒸汽波 Vaporwave · 粵語口語
+### NO.0020 · 蒸汽波 · 粵語口語
 
 <img src="web/2026-08/NO.0020_2026-08-03_S13-蒸汽波_YUE.webp" width="320">
 
@@ -914,3 +927,4 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
+
