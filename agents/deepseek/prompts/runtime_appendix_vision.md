@@ -94,5 +94,8 @@
 
 - 不许 `import os / sys / subprocess / requests / urllib` 等（脚本在无网络的子进程里跑）
 - 不许 `open()` / `eval()` / `exec()`
+- **代码里不许出现全角标点**（`：，（）` 等）。它们只能出现在字符串字面量内部；
+  出现在代码结构里会直接语法错误（实测撞过：`invalid character '：' (U+FF1A)`），
+  白费一整轮。
 - 不许改写 `QUOTE` / `FACT` 的文字内容
 - 卡面上只出现 `QUOTE` / `FACT` / `SERIAL` / `DATE` 四样文字，别的都不要写上去
