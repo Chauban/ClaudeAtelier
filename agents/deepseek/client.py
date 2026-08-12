@@ -73,6 +73,13 @@ def chat(messages, tools=None, max_tokens=None, json_mode=False,
         "out": u.get("completion_tokens"),
         "reasoning": (u.get("completion_tokens_details") or {}).get("reasoning_tokens"),
         "finish": ch.get("finish_reason"),
+        # 服务端回声的模型号。我们请求时发的是别名（deepseek-v4-flash），
+        # 响应里这个字段才可能是解析后的具体版本。台账优先记它。
+        #
+        # 这是档案馆相对画廊唯一不可替代的价值：deepseek-v4-flash 总有一天会
+        # 下线、会被悄悄换掉权重，那时「这只手 2026 年是这样画画的」还站得住，
+        # 全靠这一列写的是版本而不是别名。别名会漂，档案不能漂。
+        "model": data.get("model") or None,
     }
     return ch["message"], meta
 

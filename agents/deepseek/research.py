@@ -178,9 +178,13 @@ def run(brief, verbose=True):
         # ---- 证据闸门
         try:
             report = verify.check(payload, lang_code=brief.get("LANG_CODE"))
+            # 第几次才过。章程要求「核不实就换题」，被换掉的题是模型知识边界的
+            # 直接证据 —— 次数是这件事目前最便宜的度量，写进台账当展签说明。
+            report["attempts"] = attempt
+            report["search_calls"] = calls
             if verbose:
-                print("    [核实通过] {} 条断言，抓取 {} 个页面".format(
-                    len(report["claims"]), len(report["fetched"])))
+                print("    [核实通过] {} 条断言，抓取 {} 个页面（第 {} 次尝试）".format(
+                    len(report["claims"]), len(report["fetched"]), attempt))
             return payload, report
         except verify.VerifyError as e:
             if verbose:

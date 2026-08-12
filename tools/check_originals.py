@@ -72,12 +72,19 @@ def main():
                 if d is not None and d >= WARN_DAYS:
                     urgent.append((name, r.get("no"), d))
 
-        # 本地有图，台账有没有行（_retired 是刻意退休的，不算）
-        on_disk = set()
+        # 本地有图，台账有没有行。两个下划线目录不参与对账 —— 它们本来就
+        # 不在编号序列里：
+        #   _retired  刻意退休、被取代的稿子
+        #   _orphans  生成成功、原图也取回来了，但没进台账的（发布那步没跑成）
+        # 都留着不删：图还在就是记录，删了才是丢档案。但它们不该再触发告警，
+        # 也不该继续占着 2026-08/ 里的位置 —— 那个序号迟早会被下一张卡用掉。
+        on_disk, parked = set(), []
         for p in glob.glob(os.path.join(cards_dir, "*", "*.png")):
-            if os.sep + "_retired" + os.sep in p:
+            rel = os.path.relpath(p, cards_dir).replace(os.sep, "/")
+            if rel.startswith("_retired/") or rel.startswith("_orphans/"):
+                parked.append(rel)
                 continue
-            on_disk.add(os.path.relpath(p, cards_dir).replace(os.sep, "/"))
+            on_disk.add(rel)
         in_ledger = {(r.get("filename") or "").strip() for r in rows}
         orphans = sorted(on_disk - in_ledger)
 
@@ -101,6 +108,11 @@ def main():
             lines.append("  有图但台账里没有 {} 张（多半是失败运行留下的）：".format(len(orphans)))
             for rel in orphans[:10]:
                 lines.append("    " + rel)
+            lines.append("    → 确认不发布的话，挪进 Cards/_orphans/ 就不再报了。")
+        # 只报个数，不当问题。存着是有意的，看得见就够了。
+        if parked:
+            lines.append("  另有 {} 张存在 _retired/ _orphans/，不参与对账。".format(
+                len(parked)))
 
     ok = missing_total == 0
     if urgent:

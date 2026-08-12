@@ -733,7 +733,7 @@ footer a:hover{color:var(--accent-text)}
     <a href="README.md">README</a>
     <a href="Cards/cards-index.csv">Claude 台账</a>
     <a href="deepseekv4flash/Cards/cards-index.csv">DeepSeek 台账</a>
-    <a href="prompts/card-charter.md" title="两个 AI 拿到的是同一份题目">创作章程</a>
+    <a href="prompts/card-charter.md" title="所有参与的 AI 拿到的是同一份题目，逐字相同">创作章程</a>
     <span class="spacer"></span>
     <span>← → 翻页　空格翻面　Esc 关闭</span>
   </footer>
@@ -793,6 +793,11 @@ const LEDGERS = [
     base:"",                  url:"Cards/cards-index.csv" },
   { ai:"deepseek", label:"DeepSeek", prefix:"NO.", model:"",
     base:"deepseekv4flash/",  url:"deepseekv4flash/Cards/cards-index.csv" },
+  /* ai 必须与 agents/deepseek/config.py 注册表里的 key 逐字一致 ——
+     它就是台账 ai 列里存的值，对不上前端会认成两个不同的 AI。
+     顺序即对照展墙的列序，加在末尾，已有的列位不动。 */
+  { ai:"deepseek-pro", label:"DeepSeek Pro", prefix:"NO.", model:"",
+    base:"deepseekv4pro/",    url:"deepseekv4pro/Cards/cards-index.csv" },
 ];
 const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
@@ -982,6 +987,11 @@ function build(payloads){
         aiLabel: P.label,
         model: g("model") || P.model || "",
         dt: g("datetime"),
+        /* 班次。DeepSeek 各线从 2026-08-12 起直接写这一列，slotOf() 优先用它；
+           Claude 那份没有这列，继续靠 datetime+K+L 反解（它跑在班次边界上，
+           零漂移，反解一直是准的）。两边照样在同一个 N 相遇，所以不必为了
+           这一列去改 Claude 的 prompt。 */
+        slot: g("slot"),
         S: g("S"), style: g("style"),
         K: g("K"), topic: g("topic"),
         L: g("L"), lang: g("lang"),
@@ -1379,9 +1389,16 @@ addEventListener("resize", layout);
    所以拿到同一个 N 的卡片，题目必然完全一样。这就是对照展墙的配对依据，
    也是这个项目的题眼：同一道题，不同的手。
 
-   台账目前没有 slot 列，所以这里反过来从 datetime + K + L 把 N 解回来。
-   看着像猜，其实是解方程 —— 两个同余式必须同时成立，周期 lcm(17,7)=119 小时，
-   随便蒙中的概率约 1/119。实测 67 张里 66 张零漂移还原。
+   DeepSeek 各线从 2026-08-12 起把 slot 直接写进台账，有这一列就以它为准。
+   Claude 那份没有（它是 12 列老 schema，为一列去改生卡 prompt 不划算），
+   所以这里保留反解：从 datetime + K + L 把 N 解回来。看着像猜，其实是解方程
+   —— 两个同余式必须同时成立，周期 lcm(17,7)=119 小时，随便蒙中的概率约 1/119。
+   实测 67 张里 66 张零漂移还原。
+
+   为什么迟到的那一方必须写列、准点的那一方可以不写：反解只容许 ±2 小时漂移
+   （SLOT_DRIFT），而 Actions 实测迟到过 2h33m —— 再迟一点就一个同余式都对不上，
+   那张卡会解出 null、掉进 loose 桶，从招牌展厅里静默消失。Claude 跑在班次
+   边界上，零漂移，反解一直准。
 
    解不出来的那张（Claude NO.0035）不是 bug：它是 2026-08-06 事故当天补做的，
    K/L 由人手工指定，本来就不属于任何班次。这类卡单独陈列，不要去「修正」台账 ——

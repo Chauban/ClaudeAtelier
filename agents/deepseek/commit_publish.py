@@ -20,7 +20,8 @@ import publish   # noqa: E402
 def place(incoming):
     row = json.load(io.open(os.path.join(incoming, "row.json"), encoding="utf-8"))
     moved = []
-    for sub, root in (("web", config.WEB_DIR), ("text", config.TEXT_DIR)):
+    for sub, root in (("web", config.WEB_DIR), ("text", config.TEXT_DIR),
+                      ("code", config.CODE_DIR)):
         src_root = os.path.join(incoming, sub)
         if not os.path.isdir(src_root):
             continue
@@ -70,7 +71,8 @@ def main():
             b = config.AI_DIR + "/"
             expected = [b + "Cards/" + config.LEDGER_NAME,
                         b + "web/" + rel.replace(".png", ".webp"),
-                        b + "text/" + rel.replace(".png", ".md")]
+                        b + "text/" + rel.replace(".png", ".md"),
+                        b + "code/" + rel.replace(".png", ".py")]
         paths = publish.check_commit_allowlist(expected=expected)
         print("暂存区 {} 条路径，与本次应写的完全一致：".format(len(paths)))
         for p in paths:

@@ -6,6 +6,7 @@ pull --rebase 冲突并 goto FAIL，卡片静默积压 —— 那正是 2026-08-
 （4 张卡 20 小时）和 08-08（3 张卡）两次事故的形状。
 白名单是机械执行的，不靠自觉。
 """
+import hashlib
 import io
 import os
 import re
@@ -13,6 +14,28 @@ import subprocess
 
 import config
 import ledger
+
+
+def sha256_file(path, chunk=1 << 20):
+    """原图指纹。原图不进仓库（400MB+ 只在本地和 90 天的 artifact 里），
+    这一列是它唯一进得了 git 的部分 —— 将来核对异地副本、判断某张图有没有
+    被改动过，只能靠它。"""
+    h = hashlib.sha256()
+    with io.open(path, "rb") as f:
+        for b in iter(lambda: f.read(chunk), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def make_code(code_text, out_path):
+    """手稿：模型为这张卡现写的渲染脚本，原样存档。
+
+    **不做任何整理、格式化或删注释**。档案存的是当时那份，不是好看的那份。
+    """
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    io.open(out_path, "w", encoding="utf-8", newline="\n").write(
+        code_text if code_text.endswith("\n") else code_text + "\n")
+    return out_path
 
 
 def make_webp(png_path, out_path):
@@ -70,6 +93,13 @@ def append_ledger(meta):
         "filename": meta["filename"],
         "quote": meta["quote"], "fact": meta["fact"], "source": meta["source"],
         "ai": config.AI_KEY, "model": meta["model"],
+        # 过程记录。缺了不影响展出，所以一律 get 取值、给空默认 ——
+        # 一个记不全的字段不该让整张卡发不出去。
+        "slot": meta.get("slot", ""),
+        "rounds": meta.get("rounds", ""),
+        "research_attempts": meta.get("research_attempts", ""),
+        "duration_s": meta.get("duration_s", ""),
+        "sha256": meta.get("sha256", ""),
     })
 
 
@@ -98,7 +128,8 @@ def check_commit_allowlist(repo_root=None, expected=None):
     if bad:
         raise RuntimeError(
             "提交里出现了不该碰的路径，已中止：\n  - {}\n\n"
-            "只允许 {d}/ 下的：Cards/{l}、web/YYYY-MM/*.webp、text/YYYY-MM/*.md\n"
+            "只允许 {d}/ 下的：Cards/{l}、web/YYYY-MM/*.webp、"
+            "text/YYYY-MM/*.md、code/YYYY-MM/*.py\n"
             "尤其不能碰别人的 README.md、台账和图片 —— "
             "那会让对方的同步 rebase 冲突并停摆。".format(
                 "\n  - ".join(bad), d=config.AI_DIR, l=config.LEDGER_NAME))

@@ -1,0 +1,205 @@
+# DeepSeek Pro 生卡。
+#
+# 与 deepseek-card.yml 是同一套代码的两个租户，区别只有 ATELIER_AI=pro：
+# 身份、目录、模型号全部由 agents/deepseek/config.py 的注册表给出。
+# 想再加一家，复制这个文件、改 ATELIER_AI 和 git add 的目录即可。
+#
+# 凭据隔离与 flash 那份完全相同，两条最要紧的规矩：
+#   generate 步骤 permissions: {} 且 persist-credentials: false
+#     —— 模型写的渲染代码就在这台 VM 上跑，任何 token 留在 .git/config 都是外泄路径
+#   publish 步骤才拿 contents:write，且只跑仓库自有代码
+name: deepseek-pro-card
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只生成不发布"
+        type: boolean
+        default: false
+      force_style:
+        description: "指定风格 S（留空则按规则抽取）"
+        type: string
+        default: ""
+  # 这两条 cron 现在是**兜底**，不是主触发器。
+  #
+  # 准点由本机的计划任务 ClaudeAtelier-Trigger-Pro 负责：它到点跑
+  # trigger-cards.bat，发一个 workflow_dispatch，实测 5~10 秒进 runner。
+  # schedule 事件走的是 GitHub 明说「高负载时延迟、不保证」的共享队列 ——
+  # 2026-08-12 抽查 7 次 schedule 触发，全部迟到，47 分钟到 2h33m。
+  # 计算仍然留在这里（见文件头：模型写的渲染代码不上本机），只有时钟搬走了。
+  #
+  # 留着 cron 是因为本机会睡、会关机、gh 会被登出。那时这两条照常把卡做出来，
+  # 只是迟到 —— 也就是退回到有触发器之前的行为。所以触发器失败不停线。
+  #
+  # 与 Claude、flash 同一网格，比 flash 晚 20 分钟起跑。
+  #
+  # 这 20 分钟是**弱理由**，别当成一层保护：两家共用一把 DEEPSEEK_API_KEY，
+  # 错开也许能少撞一次并发限制 —— 但 DeepSeek 的并发规则没有查证过，
+  # 而 Actions 自身的抖动是以小时计的（2026-08-12 实测迟到 2h33m），
+  # 拿 20 分钟去躲一个以小时计的抖动是假精确。留着只因为不花代价。
+  #
+  # 真正让「错开」变得安全的是另一件事：K/L 现在按**班次边界**算而不是
+  # 按当前小时算（ledger.slot_now）。在那个修正之前，错开或迟到多久，
+  # 就会拿到别的班次的题目 —— 两家不再是同一道题。
+  schedule:
+    - cron: '20 */4 * * *'     # UTC
+    - cron: '50 */4 * * *'     # 补位；新鲜度守卫会让它在正常时空跑
+
+permissions: {}
+
+concurrency:
+  group: deepseek-pro-card
+  cancel-in-progress: false      # 排队而不是取消：中途被杀会留下没人认领的原图
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.gen.outputs.status }}
+    # pro 比 flash 慢，余量给得比那边的 45 分钟更宽。
+    timeout-minutes: 60
+    permissions: {}              # 无写权限、无 token
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false     # ← 关键，见文件头注释
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 装依赖与字体
+        run: |
+          python -m pip install --quiet pillow numpy fonttools ddgs trafilatura zhconv
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk fonts-noto-cjk-extra \
+                                      fonts-dejavu-core fonts-dejavu-extra
+          fc-cache -f > /dev/null
+
+      - name: 字体自检
+        # TTC 索引不许硬编码 —— 当场解析并断言覆盖。
+        run: python agents/deepseek/fonts.py
+
+      - name: 生成
+        id: gen
+        env:
+          ATELIER_AI: pro
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          ARGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "${{ inputs.force_style }}" ]; then ARGS="$ARGS --force-style ${{ inputs.force_style }}"; fi
+          python agents/deepseek/run.py --out out $ARGS
+          # 「本班不该出卡」与「本班出卡失败」必须分得开，否则新鲜度跳过
+          # 会被 if-no-files-found: error 误判成失败。
+          echo "status=$(cat out/status.txt 2>/dev/null || echo unknown)" >> "$GITHUB_OUTPUT"
+
+      # 原图先落袋。丢原图违反「原图必须留在本地」这条第一约束，丢台账行不会。
+      - name: 上传原图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-${{ github.run_id }}
+          path: out/original/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: 上传发布物
+        if: steps.gen.outputs.status == 'published' || steps.gen.outputs.status == 'dry-run'
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: out/publish/
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: 上传排障材料
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ github.run_id }}
+          path: out/work/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  publish:
+    needs: generate
+    # dry_run 时绝不能发布。run.py 在 --dry-run 下**照样**产出 out/publish/，
+    # publish job 自己看不出这是演习 —— 少了这一行，一次「只想试试」的触发
+    # 会把卡真发上线，而 web/* 是一年 immutable，发出去就撤不回来。
+    if: inputs.dry_run != true && needs.generate.outputs.status == 'published'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write            # 仅此处，且这一段只跑仓库自有代码
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: publish-${{ github.run_id }}
+          path: incoming
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 落地并校验提交路径
+        env:
+          ATELIER_AI: pro
+        run: python agents/deepseek/commit_publish.py --incoming incoming
+
+      - name: 推送
+        id: push
+        env:
+          ATELIER_AI: pro
+        run: |
+          git config user.name  "deepseek-pro-card[bot]"
+          git config user.email "deepseek-pro-card@users.noreply.github.com"
+          git add deepseekv4pro
+          python agents/deepseek/commit_publish.py --check-staged --incoming incoming
+          if git diff --cached --quiet; then
+            echo "没有新内容"; exit 0
+          fi
+          git commit -q -m "$(cat incoming/commit_msg.txt)"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD && exit 0
+            echo "推送失败，重试 $i"; sleep 5
+          done
+          exit 1
+
+  # 失败告警。这个项目的历史教训是「失败是无声的」——
+  # issues:write 只给这一段，且它不执行任何模型产物。
+  notify:
+    needs: [generate, publish]
+    if: always() && (needs.generate.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: 开或更新告警 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          G: ${{ needs.generate.result }}
+          P: ${{ needs.publish.result }}
+        run: |
+          TITLE="deepseek-pro-card 运行失败"
+          BODY="$(date -u '+%Y-%m-%d %H:%M UTC')  generate=$G  publish=$P
+          $RUN_URL
+
+          排障提示：generate 失败多半是选题核实反复不过、渲染轮次耗尽、
+          或搜索被限流（见 out/work 排障 artifact）；publish 失败多半是
+          提交路径白名单不匹配或推送冲突。"
+          NUM=$(gh issue list --repo "$REPO" --search "$TITLE in:title" \
+                  --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$REPO" --body "$BODY"
+            echo "已在 issue #$NUM 追加评论"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+            echo "已新建告警 issue"
+          fi

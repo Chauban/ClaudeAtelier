@@ -32,6 +32,7 @@ def chat(messages, max_tokens=None, timeout=None):
     return (msg.get("content") or ""), {
         "s": meta["sec"], "out": meta["out"],
         "reason": meta["reasoning"], "finish": meta["finish"],
+        "model": meta.get("model"),
     }
 
 
@@ -81,11 +82,13 @@ def run(brief, workdir, verbose=True):
     history = []
     improved = False      # 构图改进机会只给一次
     keep = None           # 已通过硬检查的那一版，改进失败时兜底
+    resolved = None       # 服务端回声的模型号，写进台账的 model 列
 
     for rd in range(1, MAX_ROUNDS + 1):
         if verbose:
             print("\n--- 第 {} 轮 ---".format(rd))
         txt, meta = chat(messages)
+        resolved = meta.get("model") or resolved
         if verbose:
             print("  模型返回 {}s, 输出 {} token（其中推理 {}）, finish={}".format(
                 meta["s"], meta["out"], meta["reason"], meta["finish"]))
@@ -149,7 +152,7 @@ def run(brief, workdir, verbose=True):
             # 不硬性拦截，是因为留白到底是不是毛病属于审美判断，规则不该代劳。
             if warns and not improved and rd < MAX_ROUNDS:
                 improved = True
-                keep = {"ok": True, "rounds": rd, "code": code,
+                keep = {"ok": True, "rounds": rd, "code": code, "model": resolved,
                         "png": brief["OUT_PATH"], "report": rep, "history": history}
                 if verbose:
                     print("  [通过但有构图警告] {}".format(warns[0][:70]))
@@ -164,7 +167,7 @@ def run(brief, workdir, verbose=True):
             if verbose:
                 print("  [通过] 指标 {}".format(
                     {k: v for k, v in rep["metrics"].items() if k != "warnings"}))
-            return {"ok": True, "rounds": rd, "code": code,
+            return {"ok": True, "rounds": rd, "code": code, "model": resolved,
                     "png": brief["OUT_PATH"], "report": rep, "history": history}
 
         if verbose:
@@ -184,7 +187,8 @@ def run(brief, workdir, verbose=True):
     # 轮次耗尽。若中途有一版已过硬检查（只是构图警告没改好），就用那一版。
     if keep:
         keep["history"] = history
+        keep["model"] = resolved or keep.get("model")
         if verbose:
             print("  [改进未果，采用先前通过的那一版]")
         return keep
-    return {"ok": False, "rounds": MAX_ROUNDS, "history": history}
+    return {"ok": False, "rounds": MAX_ROUNDS, "model": resolved, "history": history}

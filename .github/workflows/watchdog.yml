@@ -76,7 +76,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          for T in "产线停摆：有卡片长时间没有更新" "deepseek-card 运行失败"; do
+          # 每加一条产线，这里要加它的告警标题 —— 漏了不会报错，
+          # 只会让那条线的 issue 恢复后一直挂着。
+          for T in "产线停摆：有卡片长时间没有更新" \
+                   "deepseek-card 运行失败" \
+                   "deepseek-pro-card 运行失败"; do
             NUM=$(gh issue list --repo "$REPO" --search "$T in:title" \
                     --state open --json number --jq '.[0].number // empty')
             if [ -n "$NUM" ]; then

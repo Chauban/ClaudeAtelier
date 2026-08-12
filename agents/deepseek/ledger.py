@@ -26,10 +26,47 @@ def local_now():
         time.strftime("%Y-%m-%d", t)
 
 
-def kl_from_clock():
-    """K、L 由 UTC 小时数推出（章程第 1 节）。"""
-    n = int(time.time()) // 3600
+def slot_now():
+    """本班次的 N（UTC 纪元小时数，向下取整到 4 小时班次边界）。
+
+    **不能直接用「现在是第几个小时」。**GitHub Actions 的定时任务经常迟到，
+    2026-08-12 实测迟了 2 小时 33 分：那一班算出的是「迟到那一刻」的题目
+    （K=4 L=7），而同一班的 Claude 拿到的是 K=2 L=5。结果 08:00 班 DeepSeek
+    缺席，另外多出一张谁也对不上的孤卡 —— 「同一道题，不同的手」这个前提
+    当场就断了，而这正是这个项目的题眼。
+
+    向下取整到班次边界，迟到多久都落回同一个 N。
+
+    对 Claude 是零影响：它跑在北京 00/04/08/12/16/20 点，换算成 UTC 是
+    16/20/00/04/08/12，全部 ≡ 0 (mod 4)，取整前后完全相同。也就是说这个
+    修正只把迟到者拉回队列，不动准点者。
+    """
+    h = config.SLOT_HOURS
+    return int(time.time()) // 3600 // h * h
+
+
+def kl_from_clock(n=None):
+    """K、L 由班次 N 推出（章程第 1 节）。"""
+    n = slot_now() if n is None else n
     return n % 17 + 1, n % 7 + 1
+
+
+def shared_style_for(n):
+    """共享风格班的 S；本班不是共享班就返回 None（章程第 1 节，改动 ⑤）。
+
+    纯函数，只依赖 N —— 这是它的全部要点：**每一方各自算，谁也不问谁**。
+    同一个 N 必然得到同一个 S，参与方是两家还是十家都不影响，新来的一方
+    什么都不用注册、不用通知任何人，算出来就自动对上。
+
+    反面做法（读别人的台账看它抽了什么）在只有两方时勉强能用，方数一多
+    立刻散架：谁是权威？谁等谁先出卡？某一方那一班没出卡怎么办？而且它
+    要求跨目录读别人的文件，破坏隔离。所以这里一行 I/O 都没有。
+    """
+    if config.SHARED_STYLE_UTC_HOUR is None:
+        return None
+    if n % 24 != config.SHARED_STYLE_UTC_HOUR:
+        return None
+    return (n // 24 * config.SHARED_STYLE_STRIDE) % config.STYLE_COUNT + 1
 
 
 def _read(path):
@@ -74,15 +111,25 @@ def serial(no):
     return "{}{:04d}".format(config.SERIAL_PREFIX, no)
 
 
-def pick_style(rng=None):
-    """排除最近用过的风格后随机抽一个（章程第 1 节）。返回 (S, 名称, 候选数)。"""
+def pick_style(rng=None, n=None):
+    """定本班的风格（章程第 1 节）。返回 (S, 名称, 候选数)。
+
+    共享风格班优先：那一班的 S 由 N 直接算出，**压过排除规则** ——
+    哪怕这个风格最近刚做过也照做，否则各方就不可能落在同一个 S 上。
+    候选数返回 1，表示「没得选」。
+    """
     import tables
+    n = slot_now() if n is None else n
+    shared = shared_style_for(n)
+    if shared is not None:
+        return shared, tables.style(shared), 1
+
     rng = rng or random.Random()
     recent = [r.get("S") for r in load_all()[-config.STYLE_EXCLUDE_WINDOW:]]
     used = {int(s) for s in recent if str(s).strip().isdigit()}
-    pool = [s for s in range(1, 48) if s not in used]
+    pool = [s for s in range(1, config.STYLE_COUNT + 1) if s not in used]
     if not pool:                       # 理论上不可能（47 > 15），兜底
-        pool = list(range(1, 48))
+        pool = list(range(1, config.STYLE_COUNT + 1))
     s = rng.choice(pool)
     return s, tables.style(s), len(pool)
 
@@ -144,6 +191,53 @@ def all_quotes_and_facts(rows=None):
 
 
 # ------------------------------------------------------------------ 写入
+def read_header(path=None):
+    """台账现有表头；文件不存在或为空返回 None。"""
+    path = path or config.LEDGER
+    if not os.path.exists(path):
+        return None
+    with io.open(path, encoding="utf-8-sig", newline="") as f:
+        for row in csv.reader(f):
+            return [c.strip() for c in row]
+    return None
+
+
+def ensure_header(path=None):
+    """表头落后于 COLUMNS 时就地补齐，已有行末尾补空。
+
+    为什么必须有这一步：append 原本只在**文件不存在**时写表头，之后一律按
+    config.COLUMNS 追加。所以往 COLUMNS 末尾加一列，会让旧表头（14 列）配上
+    新行（19 个字段）—— DictWriter 照写不误，DictReader 却按旧表头读，
+    多出来的值全落进 None 键里静默丢失。台账是唯一真相源，静默丢字段是
+    最坏的一种坏法：不报错，等发现时已经写坏了好几班。
+
+    只允许**在末尾追加**。表头若不是 COLUMNS 的前缀，说明有人改名或插入了列，
+    那不是这里能安全处理的事，宁可停下来 —— 档案不猜。
+    """
+    path = path or config.LEDGER
+    head = read_header(path)
+    if head is None or head == config.COLUMNS:
+        return False
+    if head != config.COLUMNS[:len(head)]:
+        raise RuntimeError(
+            "台账表头与 config.COLUMNS 对不上，且不是「末尾加列」这种情况，已中止。\n"
+            "  现有：{}\n  期望：{}\n"
+            "加列只能加在末尾。改名或插列需要人工迁移。".format(head, config.COLUMNS))
+
+    with io.open(path, encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.reader(f))
+    rows = rows[1:]                     # 丢掉旧表头
+    pad = len(config.COLUMNS)
+    tmp = path + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(config.COLUMNS)
+        for r in rows:
+            w.writerow(list(r) + [""] * (pad - len(r)))
+    os.replace(tmp, path)               # 原子替换，中途断电不会留半个台账
+    return True
+
+
 def append(row):
     """往自己的台账追加一行。文件不存在就带 BOM 新建（前端按 utf-8-sig 读）。"""
     exists = os.path.exists(config.LEDGER)
@@ -151,6 +245,8 @@ def append(row):
     if not exists:
         with io.open(config.LEDGER, "w", encoding="utf-8-sig", newline="") as f:
             csv.DictWriter(f, fieldnames=config.COLUMNS).writeheader()
+    else:
+        ensure_header()                 # 表头落后就先补齐，见上
     with io.open(config.LEDGER, "a", encoding="utf-8", newline="") as f:
         csv.DictWriter(f, fieldnames=config.COLUMNS).writerow(
             {k: row.get(k, "") for k in config.COLUMNS})

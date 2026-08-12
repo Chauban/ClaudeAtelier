@@ -1,0 +1,67 @@
+# 壳页：给每张卡生成一个静态展签页。
+#
+# 为什么单独一个任务，而不是各家自己写自己的：
+# 各家只准碰自己的目录（COMMIT_ALLOW 机械执行），根目录 `c/` 谁都不属于。
+# 让多方都往 `c/` 里写，就是多个写入方碰同一棵子树 —— 08-05 / 08-08 两次
+# 卡片积压事故正是这个形状。所以反过来，**`c/` 由这一个任务独占**：
+# 它只读各家台账、只写 `c/`，不进任何一家的生成路径。
+#
+# 对家数不敏感：台账靠 glob 发现，新来一家不用改这里。Claude 那条线跑自己的
+# SKILL.md、不用 agents/ 那套代码，一样有壳页。
+name: shells
+
+on:
+  push:
+    paths:
+      - '**/cards-index*.csv'      # 有新卡就重建
+      - 'tools/build_shells.py'    # 改了模板就全量重建
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: shells
+  cancel-in-progress: true         # 只有最后一次的结果有意义，中间的可以丢
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write              # 只写 c/，见下面的路径校验
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 生成
+        env:
+          # 填上站点公开地址，社交预览图才会显示（OG 规范要求绝对 URL）。
+          # 留空也能生成，只是 og:image 退化成根相对路径。
+          # 改这里之后手动跑一次本 workflow，全部壳页会重新生成。
+          ATELIER_SITE_ORIGIN: ${{ vars.SITE_ORIGIN }}
+        run: python tools/build_shells.py
+
+      - name: 提交
+        run: |
+          git config user.name  "atelier-shells[bot]"
+          git config user.email "atelier-shells@users.noreply.github.com"
+          git add c
+          # 只允许 c/ 下的 html。这一步是上面那段「独占 c/」的机械保证 ——
+          # 生成脚本要是哪天写歪了路径，在这里停住，而不是把别人的文件推上去。
+          BAD=$(git diff --cached --name-only | grep -v '^c/[^/]\+/[0-9]\+\.html$' || true)
+          if [ -n "$BAD" ]; then
+            echo "暂存区出现了 c/ 以外的路径，已中止："; echo "$BAD"; exit 1
+          fi
+          if git diff --cached --quiet; then
+            echo "壳页没有变化"; exit 0
+          fi
+          N=$(git diff --cached --name-only | wc -l)
+          git commit -q -m "壳页 · 更新 ${N} 个"
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD && exit 0
+            echo "推送失败，重试 $i"; sleep 5
+          done
+          exit 1

@@ -6,8 +6,10 @@ Cards/*/
 */Cards/*/
 !*/Cards/cards-index.csv
 
-# 给 AI 看的文档只留本地，不公开到网站和仓库
-HANDOFF-项目交接.md
+# 给 AI 看的文档只留本地，不公开到网站和仓库。
+# 用通配符而不是逐个列名：生卡任务收尾会 git add -A，新写的 HANDOFF
+# 文档只要没在这里，就会被扫进那条「NO.xxxx · 风格 · 语言」的提交里。
+HANDOFF-*.md
 CLAUDE.md
 
 _recovered/
@@ -18,6 +20,10 @@ desktop.ini
 航空信封邮票-20260729.png
 sync.log
 sync-last-run.log
+
+# 本地触发器的日志。它每 4 小时写一行，不该进仓库，
+# 更不该在 Claude 那条线 git add -A 的时候被扫进去。
+trigger.log
 
 # Python 缓存
 __pycache__/

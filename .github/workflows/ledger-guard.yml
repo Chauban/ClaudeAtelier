@@ -1,0 +1,96 @@
+# 台账守卫：只许追加，不许改写既有行。
+#
+# 存在的理由：这个项目自称档案馆，而档案馆和画廊的区别就是**藏品记录不可
+# 改写**。台账是唯一真相源，某一行被悄悄改掉不会报错、不会有人发现，而线上
+# 那张 webp 是一年 immutable —— 图还在，记录却已经不是它了。
+#
+# 三个写入方（Claude 本机、flash、pro）都可能推台账，谁写坏了都由这里拦。
+# 它只读，不需要任何写权限。
+name: ledger-guard
+
+on:
+  push:
+    paths:
+      - '**/cards-index*.csv'
+  pull_request:
+    paths:
+      - '**/cards-index*.csv'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ledger-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 要能 git show 出基准那一版。push 事件的 before 可能落在几十个
+          # 提交之前（本机攒着一次推），浅克隆取不到就只能跳过检查 ——
+          # 一个「取不到基准所以放行」的守卫等于没有守卫，所以拉全量。
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 定基准
+        id: base
+        env:
+          EV: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          case "$EV" in
+            pull_request) BASE="$PR_BASE" ;;
+            push)         BASE="$BEFORE" ;;
+            *)            BASE="HEAD~1" ;;
+          esac
+          # 新分支的第一次 push，before 是全零，没有基准可比。
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE="HEAD~1"
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "基准 = $BASE"
+
+      - name: 检查
+        run: |
+          python tools/check_ledger_append_only.py --base "${{ steps.base.outputs.base }}"
+
+  # 红叉挂在提交上就已经看得见了，但这个项目的教训是「失败是无声的」——
+  # 台账被改写又恰好没人看 Actions 页面，是最坏的情况。
+  notify:
+    needs: check
+    if: always() && needs.check.result == 'failure' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: 开或更新告警 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITLE="台账被改写"
+          BODY="$(date -u '+%Y-%m-%d %H:%M UTC')  提交 ${{ github.sha }}
+          $RUN_URL
+
+          台账只许追加。既有行被改写、被删除，或表头不是「末尾加列」，
+          都会走到这里。本地复现：
+              python tools/check_ledger_append_only.py --base HEAD~1"
+          NUM=$(gh issue list --repo "$REPO" --search "$TITLE in:title" \
+                  --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --repo "$REPO" --body "$BODY"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY"
+          fi
