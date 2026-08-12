@@ -213,6 +213,13 @@ def run(brief, verbose=True):
                 if verbose:
                     print("    [{}] {} -> {} 字".format(
                         name, str(args)[:60], len(out)))
+                if calls == config.MAX_SEARCH_CALLS + 1:
+                    # 软上限：只提醒，不阻断。章程第 3 节明确允许多次搜索，
+                    # 硬拦会伤到「核不实就换题」；但 2026-08-13 实测一次搜了
+                    # 18 次、research 一项吃掉当轮 80% 的输入 —— 提醒一句就够，
+                    # 同题目上另外两轮各只用了 6 次。
+                    out += ("\n\n（提示：已经查了 {} 次。够用就收，"
+                            "把结论和证据交出来；确有必要再查也可以。）").format(calls)
                 messages.append({"role": "tool", "tool_call_id": tc["id"],
                                  "content": out})
 
