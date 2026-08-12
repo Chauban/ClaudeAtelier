@@ -1,5 +1,6 @@
 """集中配置。凡是「换个环境要改」或「实测撞出来的数」都放这里。"""
 import os
+import re
 
 # ---------------------------------------------------------------- 模型
 API_BASE = "https://api.deepseek.com"
@@ -62,7 +63,17 @@ STYLE_EXCLUDE_WINDOW = 15    # 排除最近 N 条用过的风格（章程第 1 �
 WEBP_WIDTH = 1200
 WEBP_QUALITY = 82
 
-# 只允许提交这些路径。Claude 的 README.md / cards-index.csv / NO.* 一律不许碰 ——
-# 两边同时写同一个文件会让 sync-to-github.bat 的 pull --rebase 冲突并 goto FAIL，
-# 那正是 2026-08-05 与 08-08 卡片积压事故的形状。
-COMMIT_ALLOW = r"^(Cards/cards-index-deepseek\.csv|web/\d{4}-\d{2}/DS\.[^/]+\.webp|text/\d{4}-\d{2}/DS\.[^/]+\.md)$"
+# 只允许提交自己地盘（AI_DIR）下的这三类文件。别人的 README.md / 台账 / 图片
+# 一律不许碰 —— 两边同时写同一个文件会让 sync-to-github.bat 的 pull --rebase
+# 冲突并 goto FAIL，那正是 2026-08-05 与 08-08 卡片积压事故的形状。
+#
+# **从 AI_DIR 推导，不要写死。**新来的 AI 复制这份 config、只改 AI_DIR，
+# 白名单就自动跟着对。写死过一次就出过事：目录布局从
+# 「Cards/cards-index-deepseek.csv + web/*/DS.*.webp」改成「各家一个顶层目录」
+# 之后，这个常量没跟着改，变成一条会拒绝掉全部合法路径的死规则。当时没炸，
+# 只因为唯一的调用方恰好都走了 expected 分支 —— 那是运气，不是设计。
+COMMIT_ALLOW = (
+    r"^{d}/(Cards/{l}"
+    r"|web/\d{{4}}-\d{{2}}/[^/]+\.webp"
+    r"|text/\d{{4}}-\d{{2}}/[^/]+\.md)$"
+).format(d=re.escape(AI_DIR), l=re.escape(LEDGER_NAME))

@@ -88,10 +88,24 @@ def check_commit_allowlist(repo_root=None, expected=None):
         cwd=repo_root, capture_output=True)
     raw = out.stdout.decode("utf-8", "replace")
     paths = [p for p in raw.split("\0") if p.strip()]
+
+    # 两层独立校验，都要过。以前是二选一（给了 expected 就不查白名单），
+    # 那样算 expected 的代码一旦出错就没有兜底了 —— 而它的输入是模型产物
+    # 派生出来的 row.json。两层的失效原因不相关，才叫纵深防御。
+    #
+    # 第一层：每条路径都必须落在自己的地盘里。
+    bad = [p for p in paths if not re.match(config.COMMIT_ALLOW, p)]
+    if bad:
+        raise RuntimeError(
+            "提交里出现了不该碰的路径，已中止：\n  - {}\n\n"
+            "只允许 {d}/ 下的：Cards/{l}、web/YYYY-MM/*.webp、text/YYYY-MM/*.md\n"
+            "尤其不能碰别人的 README.md、台账和图片 —— "
+            "那会让对方的同步 rebase 冲突并停摆。".format(
+                "\n  - ".join(bad), d=config.AI_DIR, l=config.LEDGER_NAME))
+
+    # 第二层：暂存区必须**恰好**等于本次该写的那几条 —— 比模式匹配更严，
+    # 不只挡住不该碰的，还挡住「多写了一个本不该有的文件」。
     if expected is not None:
-        # 统一连号之后，DeepSeek 的文件名也是 NO.*，靠前缀已经分不出两家。
-        # 改成校验「暂存区恰好等于本次该写的那几条路径」—— 比模式匹配更严：
-        # 不只挡住不该碰的，还挡住「多写了一个本不该有的文件」。
         want, got = set(expected), set(paths)
         if want != got:
             raise RuntimeError(
@@ -102,13 +116,4 @@ def check_commit_allowlist(repo_root=None, expected=None):
                 "  缺少：{}".format(
                     sorted(want), sorted(got),
                     sorted(got - want) or "无", sorted(want - got) or "无"))
-        return paths
-    bad = [p for p in paths if not re.match(config.COMMIT_ALLOW, p)]
-    if bad:
-        raise RuntimeError(
-            "提交里出现了不该碰的路径，已中止：\n  - {}\n\n"
-            "只允许：Cards/cards-index-deepseek.csv、web/YYYY-MM/DS.*.webp、"
-            "text/YYYY-MM/DS.*.md\n"
-            "尤其不能碰 README.md、Cards/cards-index.csv 和任何 NO.* 文件 —— "
-            "那会让 Claude 侧的同步 rebase 冲突并停摆。".format("\n  - ".join(bad)))
     return paths
