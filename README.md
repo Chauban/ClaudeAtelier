@@ -1,10 +1,22 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **73** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **74** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
 
 ---
 
+
+### NO.0074 · 包豪斯几何构成 · 英文
+
+<img src="web/2026-08/NO.0074_2026-08-13_S14-包豪斯几何_EN.webp" width="320">
+
+> Beauty is not what is placed before you. It is where you were invited to stand.（美不是摆在你面前的东西，而是你被请去站着的那个位置。）
+
+**动物行为** — Male great bowerbirds (Ptilonorhynchus nuchalis) in northern Australia arrange hundreds of bones, shells and pebbles across their courts in a strict size gradient: smallest near the female, largest farthest from her. From her one fixed viewing spot inside the stick avenue, the objects subtend far more uniform visual angles than a random arrangement would, and the male displaying beyond them looks larger. Endler, Endler and Doerr reported this in Current Biology in 2010; when researchers reversed a male's gradient, he rebuilt it within three days. A 2012 Science paper by Kelley and Endler found that the quality of the illusion predicts mating success.（澳大利亚北部的大亭鸟，雄鸟会在求偶场上按严格的大小梯度铺开数百块骨头、贝壳与石子：离雌鸟最近的最小，最远的最大。从雌鸟在树枝通道里那个固定的观看位置望出去，这些物件在她眼中张开的视角远比随机摆放时齐整，站在它们之后展示的雄鸟也就显得更大。Endler 等人 2010 年发表于《当代生物学》；研究者把梯度弄反之后，雄鸟三天之内就重排了回来。Kelley 与 Endler 2012 年在《科学》上进一步发现，这套错觉做得越好，交配成功率越高。）
+
+`2026-08-13 12:09` ｜ [原图](Cards/2026-08/NO.0074_2026-08-13_S14-包豪斯几何_EN.png) ｜ [文字](text/2026-08/NO.0074_2026-08-13_S14-包豪斯几何_EN.md)
+
+---
 
 ### NO.0073 · 复古航海地图 · 简体中文
 
