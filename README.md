@@ -1,10 +1,22 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **76** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **77** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
 
 ---
 
+
+### NO.0077 · 3D 立体挤出文字 · 英文
+
+<img src="web/2026-08/NO.0077_2026-08-14_S40-立体挤出文字_EN.webp" width="320">
+
+> Nobody notices being lifted. You only notice, one morning, that the steps back down have grown too steep.（没有人感觉得到自己正在被抬高。你只会在某个早晨发现，那道往回走的台阶，已经变得太陡了。）
+
+**建筑与城市** — In 1861 Chicago raised the Tremont House — a six-storey hotel covering almost a full acre — six feet into the air. Around 500 men turned jackscrews in covered trenches while the hotel stayed open for business; most guests, a U.S. senator among them, noticed nothing at all, except that the front steps grew steeper every day.（1861年，芝加哥把占地近一英亩的六层旅馆特里蒙特饭店整栋抬高了六英尺。约五百名工人在遮盖的沟槽里同步转动千斤顶，旅馆照常营业；包括一位美国参议员在内的多数住客毫无察觉，只发现门口的台阶一天比一天陡。）
+
+`2026-08-14 16:10` ｜ [原图](Cards/2026-08/NO.0077_2026-08-14_S40-立体挤出文字_EN.png) ｜ [文字](text/2026-08/NO.0077_2026-08-14_S40-立体挤出文字_EN.md)
+
+---
 
 ### NO.0076 · 港式霓虹招牌 · 简体中文
 
