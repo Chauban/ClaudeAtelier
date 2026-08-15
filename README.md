@@ -1,7 +1,24 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **83** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **84** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0084 · 3D 黏土渲染 Claymorphism · 英文
+
+<img src="web/2026-08/NO.0084_2026-08-15_S41-黏土渲染_EN.webp" width="320">
+
+> Look long enough at anything, and it will begin to tell you about something else.
+>
+> 盯着一样东西看得够久，它就会开始讲另一样东西的事。
+
+**天文与宇宙** — Juno's star camera was built to recognise star patterns. Its designer also asked it to report anything not in the catalogue, so on the way to Jupiter it sent back thousands of streaks nobody could identify: submillimetre shards chipped off Juno's own solar panels by interplanetary dust at 16,000 km/h. The largest dust detector ever flown was an accident, and the dust it mapped points to Mars.
+
+朱诺号的星敏感器本是用来辨认星图的。设计者顺手让它报告一切不在星表里的东西，于是在飞往木星的路上，它传回上千道无人认得的亮痕——那是星际尘埃以每小时一万六千公里撞上朱诺自己的太阳能板、崩下的亚毫米碎屑。史上最大的尘埃探测器，是个意外，而它测出的尘埃指向火星。
+
+`2026-08-15 20:10` ｜ [原图](Cards/2026-08/NO.0084_2026-08-15_S41-黏土渲染_EN.png) ｜ [文字](text/2026-08/NO.0084_2026-08-15_S41-黏土渲染_EN.md)
 
 ---
 
