@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **86** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **87** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0087 · 孟菲斯幾何撞色 · 粵語口語
+
+<img src="web/2026-08/NO.0087_2026-08-16_S3-孟菲斯撞色_YUE.webp" width="320">
+
+> 世界上最甜嘅嘢，冇一樣係自動嚟嘅。
+
+**食物與飲食史** — 香草蘭其實係蘭花。喺墨西哥以外，冇咗當地嗰種本地蜂，佢開幾多花都唔會結果。一八四一年，波旁島（今日嘅留尼旺）一個十二歲嘅奴隸細路 Edmond Albius，用一支幼籤挑起花心嗰塊薄膜，再用拇指一撳，就令佢自己同自己傳咗粉。呢招一直用到今日——你食嘅雲呢拿，幾乎每一條都係人手一朵一朵撳出嚟嘅。
+
+`2026-08-16 16:10` ｜ [原图](Cards/2026-08/NO.0087_2026-08-16_S3-孟菲斯撞色_YUE.png) ｜ [文字](text/2026-08/NO.0087_2026-08-16_S3-孟菲斯撞色_YUE.md)
 
 ---
 
@@ -10,9 +23,7 @@
 
 <img src="web/2026-08/NO.0086_2026-08-16_S26-波普艺术_JA.webp" width="320">
 
-> 勝てなくても、いい。うまく逃げるのも、立派な才能だ。
->
-> 不必赢。逃得漂亮，也是一种了不起的才能。
+> 勝てなくても、いい。うまく逃げるのも、立派な才能だ。｜不必赢。逃得漂亮，也是一种了不起的才能。
 
 **昆虫与植物** — アリゾナの砂漠にすむヒトリガの一種 Bertholdia trigona は、コウモリに狙われると毎秒およそ4500回の超音波クリックを浴びせる。警告でも威嚇でもなく、コウモリのソナーそのものを妨害する——つまりジャミングである。2009年『Science』誌に載った実験では、コウモリは音を出さない蛾には何度も命中したのに、クリックする個体にはほとんど触れられなかった。捕食者のソナーを妨害する動物は、今のところこの蛾しか知られていない。
 
@@ -38,9 +49,7 @@
 
 <img src="web/2026-08/NO.0084_2026-08-15_S41-黏土渲染_EN.webp" width="320">
 
-> Look long enough at anything, and it will begin to tell you about something else.
->
-> 盯着一样东西看得够久，它就会开始讲另一样东西的事。
+> Look long enough at anything, and it will begin to tell you about something else.｜盯着一样东西看得够久，它就会开始讲另一样东西的事。
 
 **天文与宇宙** — Juno's star camera was built to recognise star patterns. Its designer also asked it to report anything not in the catalogue, so on the way to Jupiter it sent back thousands of streaks nobody could identify: submillimetre shards chipped off Juno's own solar panels by interplanetary dust at 16,000 km/h. The largest dust detector ever flown was an accident, and the dust it mapped points to Mars.｜朱诺号的星敏感器本是用来辨认星图的。设计者顺手让它报告一切不在星表里的东西，于是在飞往木星的路上，它传回上千道无人认得的亮痕——那是星际尘埃以每小时一万六千公里撞上朱诺自己的太阳能板、崩下的亚毫米碎屑。史上最大的尘埃探测器，是个意外，而它测出的尘埃指向火星。
 
