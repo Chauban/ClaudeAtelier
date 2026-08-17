@@ -209,6 +209,42 @@ def missing_glyphs(text, logical, bold=False):
     return out
 
 
+def inventory_text(limit=80):
+    """把扫到的字体**原样列出来**：文件路径 + 每个 face 的索引和名字。
+
+    这是给看得见图那条线用的（`compose_vision.build_prompt` 注入进环境说明）。
+    它不能 import os、跑不了 shell，没法像 Claude 那样先 `ls /usr/share/fonts`
+    再决定用哪个文件；而环境说明里那份写死的清单自己写着「清单会过时，先查再用，
+    不要照抄」—— **既要求先查、又不给查的手段**，是 2026-08-17 之前的一处
+    自相矛盾。清单还标着「截至 2026-08-12」，换个 runner 镜像就会静默失准。
+
+    刻意**不做**的三件事，做了就从「代它查」变成「代它答」：
+      · 不排序、不推荐、不按逻辑名归类
+      · 不做 resolve() 那套打分（避开 Italic/Condensed、按 face 名区分 SC/TC/HK）
+        —— 那是选型判断，Claude 那条线自己做，明线也得自己做
+      · 不筛掉「不相关」的字体 —— 筛就是替它决定什么相关
+
+    相当于一次 `ls` + `fc-list`，不多不少。
+    """
+    by_file = {}
+    for path, idx, _ttf, name in _scan():
+        by_file.setdefault(path, []).append((idx, name))
+    paths = sorted(by_file)
+    lines = []
+    for p in paths[:limit]:
+        faces = sorted(by_file[p])
+        lines.append(p)
+        # TTC 一行列全部 face：索引是这里唯一能拿到真值的东西，
+        # 硬编码成 2=SC/3=TC 那组数只在某一个 Debian 构建上成立。
+        lines.append("    " + "  ".join(
+            "#{} {}".format(i, (n or "?")[:40]) for i, n in faces))
+    if len(paths) > limit:
+        lines.append("……另有 {} 个字体文件未列出。".format(len(paths) - limit))
+    if not lines:
+        lines.append("（没扫到任何字体文件 —— 这台机器上的字体目录是空的）")
+    return "\n".join(lines)
+
+
 def report():
     lines = ["字体解析结果（{}）".format(sys.platform), "-" * 74]
     seen_faces = {}
