@@ -173,6 +173,7 @@ def append_ledger(meta):
         "duration_s": meta.get("duration_s", ""),
         "sha256": meta.get("sha256", ""),
         "flags": meta.get("flags", ""),
+        "fingerprint": meta.get("fingerprint", ""),
     })
 
 

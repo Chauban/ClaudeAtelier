@@ -187,6 +187,9 @@ def main():
         "flags": "|".join(flags),
         # 服务端回声的具体版本优先；拿不到才退回请求时用的别名。
         "model": res.get("model") or config.MODEL,
+        # 后端配置指纹。**没有别名可退**——拿不到就是空，因为这一列的全部
+        # 价值在于它是服务端说的；本地编一个出来等于伪造 provenance。
+        "fingerprint": res.get("fingerprint") or "",
         # ---- 过程记录
         "slot": brief["slot"],
         "rounds": res.get("rounds", ""),

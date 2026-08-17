@@ -144,6 +144,15 @@ def chat(messages, tools=None, max_tokens=None, json_mode=False,
         # model 就是请求里那个别名 —— 那条线的这一列只能是别名，不是版本。
         # 记在这里，免得后人以为它是版本。
         "model": data.get("model") or None,
+        # 后端配置指纹。**它补的正是上面那条「已知缺口」的另一半**：
+        # 别名会漂，版本串也未必够 —— 同一个 deepseek-v4-flash 在两个月里
+        # 可以是不同日期后缀的权重，回声的 model 却一模一样。指纹是这两次
+        # 之间唯一看得出差别的东西。
+        #
+        # 只记录，不展出：画廊没有它的位置，档案馆没它不成立。
+        # 各家填不填、填什么全看厂商，拿不到就是 None（读作「不知道」，
+        # 不是「没变过」）。
+        "fingerprint": data.get("system_fingerprint") or None,
         "id": data.get("id") or None,
     }
     return ch["message"], meta

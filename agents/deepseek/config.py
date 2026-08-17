@@ -159,12 +159,26 @@ LEDGER_NAME = "cards-index.csv"
 #                     「没出问题」和「没被检查」。
 #                     render-degraded  盲线：轮次耗尽，lint 仍有未解决的问题
 #                     self-unsatisfied 明线：它自己看过图，说还有毛病
+#   fingerprint       服务端回声的 system_fingerprint，即后端配置指纹。
+#                     2026-08-17 加的，补的是 model 列补不上的那一半：**同一个
+#                     别名、同一个回声版本串，底下的权重可以已经换过一轮**
+#                     （deepseek-v4 相同 id、不同日期后缀就是这个形状）。
+#                     那种替换从 model 列上完全看不出来，指纹是唯一看得出的。
+#
+#                     取**最后一次回声**，与 model 列同口径（见 compose*.py）。
+#                     只记录，不展出：index.html 按表头名取列，不认识的列它根本
+#                     不看 —— 这一列进档案、不进画廊，正是想要的效果。
+#
+#                     空 = 拿不到，读作「不知道」，**不是「没变过」**。各家填不填
+#                     由厂商定：DeepSeek 文档标 required string（未实测取值是否
+#                     真的随后端变化）；Kimi 待测；Claude 那条线永远为空 ——
+#                     它在沙箱里画卡，根本没有 chat/completions 响应可读。
 #
 # 加列只能加在末尾，且 ledger.ensure_header() 会把已有台账的表头就地补齐。
 COLUMNS = ["no", "datetime", "S", "style", "K", "topic", "L", "lang",
            "filename", "quote", "fact", "source", "ai", "model",
            "slot", "rounds", "research_attempts", "duration_s", "sha256",
-           "flags"]
+           "flags", "fingerprint"]
 
 # ---------------------------------------------------------------- 时间
 # runner 跑在 UTC，但台账 datetime 必须写本地时间（UTC+8），

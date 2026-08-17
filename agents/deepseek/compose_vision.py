@@ -192,6 +192,10 @@ def run(brief, workdir, verbose=True):
     history, critiques = [], []
     keep = None          # 最后一版真的画出图的，判词没过也留着 —— 宁可发张有毛病的
     resolved = None
+    # 后端指纹，写进台账的 fingerprint 列。取值口径与 resolved 逐字相同
+    # （最后一次回声，渲染和判词两处调用都算）—— 两列并排放在台账里，
+    # 口径不一样会比缺一列更误导人。
+    fp = None
 
     for rd in range(1, MAX_ROUNDS + 1):
         if verbose:
@@ -199,6 +203,7 @@ def run(brief, workdir, verbose=True):
         msg, meta = client.chat(messages, stage="render")
         meter.record("render", meta)
         resolved = meta.get("model") or resolved
+        fp = meta.get("fingerprint") or fp
         txt = msg.get("content") or ""
         if verbose:
             print("  模型返回 {}s, 输出 {} token（其中推理 {}）, finish={}".format(
@@ -266,12 +271,13 @@ def run(brief, workdir, verbose=True):
         # 轮次耗尽时宁可发一张它自己都不满意的卡，也不空一班：
         # 画得不好是看得见的，而空着只是一个格子，什么都说明不了。
         keep = {"ok": True, "rounds": rd, "code": code, "model": resolved,
-                "png": png, "report": rep}
+                "fingerprint": fp, "png": png, "report": rep}
 
         # ---- 让它自己看
         t0 = time.time()
         v, cmeta = critique(messages, png, brief, verbose=verbose)
         resolved = cmeta.get("model") or resolved
+        fp = cmeta.get("fingerprint") or fp
         v["round"] = rd
         critiques.append(v)
         if verbose:
@@ -292,6 +298,7 @@ def run(brief, workdir, verbose=True):
         # ok=True 时残留的建议不丢：写进 text/*.md 的「看图自检」一节存档。
         if v.get("ok"):
             return {"ok": True, "rounds": rd, "code": code, "model": resolved,
+                    "fingerprint": fp,
                     "png": png, "report": rep, "history": history,
                     "critiques": critiques,
                     "problems": [p for p in (v.get("problems") or [])]}
@@ -315,6 +322,7 @@ def run(brief, workdir, verbose=True):
     if keep:
         keep.update({"history": history, "critiques": critiques,
                      "model": resolved or keep.get("model"),
+                     "fingerprint": fp or keep.get("fingerprint"),
                      "degraded": True})
         if verbose:
             print("\n  [轮次耗尽，采用最后一版画出来的图]"
@@ -322,4 +330,4 @@ def run(brief, workdir, verbose=True):
                       len((critiques[-1].get("problems") if critiques else []) or [])))
         return keep
     return {"ok": False, "rounds": MAX_ROUNDS, "model": resolved,
-            "history": history, "critiques": critiques}
+            "fingerprint": fp, "history": history, "critiques": critiques}

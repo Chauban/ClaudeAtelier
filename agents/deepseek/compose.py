@@ -35,6 +35,7 @@ def chat(messages, max_tokens=None, timeout=None):
         "s": meta["sec"], "out": meta["out"],
         "reason": meta["reasoning"], "finish": meta["finish"],
         "model": meta.get("model"),
+        "fingerprint": meta.get("fingerprint"),
     }
 
 
@@ -97,6 +98,11 @@ def run(brief, workdir, verbose=True):
     keep = None           # 已通过硬检查的那一版，改进失败时兜底
     drawn = None          # **最后一版真的把图画出来了的**（哪怕没过检查）
     resolved = None       # 服务端回声的模型号，写进台账的 model 列
+    # 后端指纹，写进台账的 fingerprint 列。和 resolved 一样取**最后一次回声**：
+    # 一次生卡要发好几轮请求，后端热更新的话轮次之间可以不一样，而决定这张
+    # 画面的是最后那一轮。刻意不收集成集合 —— 这一列回答的是「画出这张图的
+    # 那次调用跑在什么后端上」，不是「这次生卡途经过哪些后端」。
+    fp = None
 
     def _mtime():
         try:
@@ -109,6 +115,7 @@ def run(brief, workdir, verbose=True):
             print("\n--- 第 {} 轮 ---".format(rd))
         txt, meta = chat(messages)
         resolved = meta.get("model") or resolved
+        fp = meta.get("fingerprint") or fp
         if verbose:
             print("  模型返回 {}s, 输出 {} token（其中推理 {}）, finish={}".format(
                 meta["s"], meta["out"], meta["reason"], meta["finish"]))
@@ -180,6 +187,7 @@ def run(brief, workdir, verbose=True):
             if warns and not improved and rd < MAX_ROUNDS:
                 improved = True
                 keep = {"ok": True, "rounds": rd, "code": code, "model": resolved,
+                        "fingerprint": fp,
                         "png": brief["OUT_PATH"], "report": rep, "history": history}
                 if verbose:
                     print("  [通过但有构图警告] {}".format(warns[0][:70]))
@@ -195,6 +203,7 @@ def run(brief, workdir, verbose=True):
                 print("  [通过] 指标 {}".format(
                     {k: v for k, v in rep["metrics"].items() if k != "warnings"}))
             return {"ok": True, "rounds": rd, "code": code, "model": resolved,
+                    "fingerprint": fp,
                     "png": brief["OUT_PATH"], "report": rep, "history": history}
 
         if verbose:
@@ -215,6 +224,7 @@ def run(brief, workdir, verbose=True):
     if keep:
         keep["history"] = history
         keep["model"] = resolved or keep.get("model")
+        keep["fingerprint"] = fp or keep.get("fingerprint")
         if verbose:
             print("  [改进未果，采用先前通过的那一版]")
         return keep
@@ -232,8 +242,9 @@ def run(brief, workdir, verbose=True):
             print("  [{} 轮都没过检查，采用最后一版画出来的图]"
                   " —— 遗留 {} 项问题，会记进台账".format(MAX_ROUNDS, len(probs)))
         return {"ok": True, "degraded": True, "rounds": drawn["rounds"],
-                "code": drawn["code"], "model": resolved,
+                "code": drawn["code"], "model": resolved, "fingerprint": fp,
                 "png": brief["OUT_PATH"], "report": drawn["report"],
                 "problems": probs, "history": history}
 
-    return {"ok": False, "rounds": MAX_ROUNDS, "model": resolved, "history": history}
+    return {"ok": False, "rounds": MAX_ROUNDS, "model": resolved,
+            "fingerprint": fp, "history": history}
