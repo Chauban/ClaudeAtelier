@@ -22,7 +22,12 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TZ_OFFSET = 8               # 台账 datetime 写的是本地时间（UTC+8）
-STALE_HOURS = 10.0          # 4 小时一班，超过 10 小时 = 连丢两班以上
+STALE_HOURS = 10.0          # 默认：4 小时一班，超过 10 小时 = 连丢两班以上
+STALE_HOURS_BY_LINE = {
+    # 临时每天 00:00 一班；留到 30 小时才告警，避免白天按默认阈值误报。
+    "deepseekv4flash": 30.0,
+    "deepseekv4pro": 30.0,
+}
 
 
 def ledgers():
@@ -55,7 +60,8 @@ def newest(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--stale-hours", type=float, default=STALE_HOURS)
+    ap.add_argument("--stale-hours", type=float, default=None,
+                    help="覆盖所有产线的停摆阈值")
     a = ap.parse_args()
 
     lines, stalled = [], []
@@ -65,13 +71,19 @@ def main():
             # 空台账不算故障：新接入的产线还没出过卡
             lines.append("  {:16s} {}".format(name, info))
             continue
-        mark = "停摆" if age > a.stale_hours else "正常"
-        lines.append("  {:16s} {}  最新 NO.{} {}（{:.1f} 小时前）".format(
-            name, mark, info.get("no"), info.get("datetime"), age))
-        if age > a.stale_hours:
+        threshold = a.stale_hours if a.stale_hours is not None \
+            else STALE_HOURS_BY_LINE.get(name, STALE_HOURS)
+        mark = "停摆" if age > threshold else "正常"
+        lines.append("  {:16s} {}  最新 NO.{} {}（{:.1f} 小时前；阈值 {:.0f} 小时）".format(
+            name, mark, info.get("no"), info.get("datetime"), age, threshold))
+        if age > threshold:
             stalled.append((name, age, info.get("datetime"), info.get("no")))
 
-    print("产线巡检（阈值 {:.0f} 小时）".format(a.stale_hours))
+    if a.stale_hours is None:
+        print("产线巡检（默认阈值 {:.0f} 小时；DeepSeek 临时为 30 小时）".format(
+            STALE_HOURS))
+    else:
+        print("产线巡检（统一阈值 {:.0f} 小时）".format(a.stale_hours))
     print("\n".join(lines))
 
     if stalled:
