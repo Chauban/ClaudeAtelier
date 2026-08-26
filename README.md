@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **97** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **98** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0098 · 工程蓝图 · 英文
+
+<img src="web/2026-08/NO.0098_2026-08-26_S24-工程蓝图_EN.webp" width="320">
+
+> Some things you know better than you can say. Put them into words too soon, and the words are all you will have left.
+
+**心理学与认知** — In 1990, 88 students at the University of Washington watched a 30-second video of a bank robbery. Twenty minutes later, half of them spent five minutes writing down the robber's face in as much detail as they could. Putting the face into words made them worse at picking it out of an eight-photo lineup: 38% correct, against 64% for those who wrote nothing at all. Schooler and Engstler-Schooler called it verbal overshadowing and subtitled the paper "Some Things Are Better Left Unsaid." In 2014 the study became psychology's first Registered Replication Report — 31 labs in 11 countries, every protocol filed in advance. Run in the original task order, the effect held: describers were about 16% less likely to pick the right man.
+
+`2026-08-26 08:10` ｜ [原图](Cards/2026-08/NO.0098_2026-08-26_S24-工程蓝图_EN.png) ｜ [文字](text/2026-08/NO.0098_2026-08-26_S24-工程蓝图_EN.md)
 
 ---
 
@@ -1265,4 +1278,3 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
-
