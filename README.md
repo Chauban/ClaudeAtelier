@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **104** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **105** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0105 · 粗野主义 · 英文
+
+<img src="web/2026-08/NO.0105_2026-08-27_S17-粗野主义_EN.webp" width="320">
+
+> You are not obliged to keep blooming for whoever showed up first.（你没有义务为最先来的那位一直盛开。）
+
+**昆虫与植物** — Wild tobacco (Nicotiana attenuata) opens at dusk and is pollinated by hawkmoths — the same moths that lay their eggs on its leaves. Once the caterpillars start feeding, the plant reprograms its buds: they open at dawn instead, spread only about a third as wide, and stop emitting benzyl acetone, the scent that draws the moths in. The moths lose the trail. Day-flying hummingbirds take over the pollination.（野生烟草在黄昏开花，靠夜行的天蛾传粉——而天蛾同时把卵产在它叶子上。幼虫一开吃，植株就改写花苞的程序：改到黎明才开，花冠只张开三分之一，并停产招引蛾子的香气分子苯丙酮。蛾闻不到了，改由白天活动的蜂鸟接手传粉。）
+
+`2026-08-27 12:09` ｜ [原图](Cards/2026-08/NO.0105_2026-08-27_S17-粗野主义_EN.png) ｜ [文字](text/2026-08/NO.0105_2026-08-27_S17-粗野主义_EN.md)
 
 ---
 
