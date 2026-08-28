@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **111** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **112** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0112 · 玻璃拟态毛玻璃 · 英文
+
+<img src="web/2026-08/NO.0112_2026-08-28_S7-玻璃拟态_EN.webp" width="320">
+
+> Some things learn to fly only because sinking was never an option.
+
+**海洋生物** — The sea butterfly is a snail. Limacina helicina, about three millimetres wide, does not swim — it flies. It beats the two lobes of its foot through the same figure-of-eight that carries a fruit fly through air, claps them together and flings them apart for extra lift, and rolls its whole shell up to 60 degrees with every stroke. High-speed cameras confirmed it in 2016: the snail and the fly had arrived at the same solution.
+
+`2026-08-28 16:09` ｜ [原图](Cards/2026-08/NO.0112_2026-08-28_S7-玻璃拟态_EN.png) ｜ [文字](text/2026-08/NO.0112_2026-08-28_S7-玻璃拟态_EN.md)
 
 ---
 
