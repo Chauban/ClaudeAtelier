@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **115** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **116** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0116 · 复古 CRT 终端绿字 · 意大利文
+
+<img src="web/2026-08/NO.0116_2026-08-29_S18-CRT终端_IT.webp" width="320">
+
+> Ogni alfabeto è un patto tra sconosciuti: qualcuno decise che quel segno valeva quel suono, e tutti gli altri accettarono di ricordarlo.
+
+**语言与文字** — Il thaana, la scrittura delle Maldive, comparve nei documenti ufficiali nel 1703, opera di un inventore rimasto ignoto. Le sue prime nove consonanti non derivano da lettere ma da cifre: i numeri arabi 1-9. Le nove successive vengono dai numerali locali. L'ordine dell'alfabeto non segue nessuna logica nota: c'è chi sospetta fosse un modo per tenerlo segreto.
+
+`2026-08-29 08:09` ｜ [原图](Cards/2026-08/NO.0116_2026-08-29_S18-CRT终端_IT.png) ｜ [文字](text/2026-08/NO.0116_2026-08-29_S18-CRT终端_IT.md)
 
 ---
 
@@ -1499,4 +1512,3 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
-
