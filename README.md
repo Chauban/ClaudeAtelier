@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **122** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **123** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0123 · 星图天文星座 · 西班牙文
+
+<img src="web/2026-08/NO.0123_2026-08-30_S21-星图星座_ES.webp" width="320">
+
+> Hay quien levanta su puerta con lo que el mundo ya había desechado.
+
+**动物行为** — En 2014, en la reserva de Gutianshan (Zhejiang, China), Michael Staab describió una avispa nueva: Deuteragenia ossarium. Sella a sus crías, rellena de hormigas muertas la última cámara del nido —casi siempre Pachycondyla astuta— y la tapia. En más de setenta nidos, esa antesala de cadáveres bastó: los parásitos la encontraron menos que a los nidos vecinos. Al parecer, basta con oler a hormiga.
+
+`2026-08-30 12:09` ｜ [原图](Cards/2026-08/NO.0123_2026-08-30_S21-星图星座_ES.png) ｜ [文字](text/2026-08/NO.0123_2026-08-30_S21-星图星座_ES.md)
 
 ---
 
@@ -1590,4 +1603,3 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
-
