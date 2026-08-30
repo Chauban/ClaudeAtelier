@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **125** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **126** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0126 · 瑞士国际主义网格排版 · 英文
+
+<img src="web/2026-08/NO.0126_2026-08-31_S2-瑞士国际主义_EN.webp" width="320">
+
+> Ruin is only raw material with a bad reputation.
+
+**音乐与声音** — In 1942 the piano teacher Harold Rhodes was posted to the U.S. Army Air Corps, playing for airmen recovering in hospital beds. A piano could not be carried from bed to bed, so he built one out of scrap: a 29-note lap keyboard whose bars were cut from the aluminium hydraulic tubing of wrecked B-17 bombers. It was handed out as a kit the patients assembled themselves. That bedside instrument grew into the Rhodes electric piano.
+
+`2026-08-31 00:09` ｜ [原图](Cards/2026-08/NO.0126_2026-08-31_S2-瑞士国际主义_EN.png) ｜ [文字](text/2026-08/NO.0126_2026-08-31_S2-瑞士国际主义_EN.md)
 
 ---
 
