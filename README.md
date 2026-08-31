@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **132** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **133** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0133 · 极简主义大留白 · 英文
+
+<img src="web/2026-09/NO.0133_2026-09-01_S1-极简留白_EN.webp" width="320">
+
+> The fussiness no one thanked him for is the only part that outlived him.
+
+**语言与文字** — Around 1175 an English canon named Orm wrote some 20,000 lines of verse in a spelling he invented himself: double the consonant, and the vowel before it is short. He did it so priests reading aloud would not mispronounce the words. The one manuscript that survives is in his own hand, thick with his own erasures. No one else took up his system — and it is now a chief source for how English actually sounded in the twelfth century.
+
+`2026-09-01 04:09` ｜ [原图](Cards/2026-09/NO.0133_2026-09-01_S1-极简留白_EN.png) ｜ [文字](text/2026-09/NO.0133_2026-09-01_S1-极简留白_EN.md)
 
 ---
 
@@ -1720,3 +1733,4 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
+
