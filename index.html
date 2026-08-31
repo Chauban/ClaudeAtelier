@@ -408,6 +408,23 @@ html[data-theme="light"] .theme-toggle .t-light{background:var(--surface-2);colo
 }
 .detail-flag b{color:var(--fg-8,#aaa);font-weight:600}
 
+/* 过程记录：这张卡是怎么画出来的。台账里一直有，展签上一直没有。 */
+.b-prov{
+  display:flex;flex-wrap:wrap;gap:5px 14px;margin:14px 0 0;
+  font-size:11px;line-height:1.6;color:var(--fg-4);
+  font-variant-numeric:tabular-nums;
+}
+.b-prov span{white-space:nowrap}
+.b-prov b{color:var(--fg-2);font-weight:500}
+.b-prov code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:10.5px;color:var(--fg-3);word-break:break-all;white-space:normal}
+/* 核实状态。证据闸门下线之后，断言是模型自称的、程序没逐字比对过 ——
+   展签必须说出这件事，否则读者会以为它被验过。 */
+.b-verify{
+  margin:12px 0 0;font-size:11px;line-height:1.65;color:var(--fg-4);
+}
+.b-verify a{color:var(--fg-3)}
+
 .empty{text-align:center;padding:90px 0;color:var(--fg-4);font-size:14px}
 .empty b{display:block;color:var(--fg-2);font-size:16px;margin-bottom:8px;font-weight:400}
 
@@ -610,8 +627,61 @@ footer{
   display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
   border-top:1px solid var(--line-soft);margin-top:20px;padding-top:26px;
 }
+/* 台账链接是 JS 填进一个 span 的；display:contents 让它们直接成为
+   footer 的 flex 子项，否则整组会挤成一坨、不吃 footer 的 gap */
+#footLedgers{display:contents}
 footer a{color:var(--fg-4);text-decoration:none;border-bottom:1px solid var(--line-soft)}
 footer a:hover{color:var(--accent-text)}
+
+/* ============ 溯源档案 ============ */
+#arch{
+  position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:var(--scrim);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+#arch[hidden]{display:none}
+.arch-panel{
+  width:min(720px,100%);max-height:min(84vh,860px);overflow:auto;
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:14px;
+  padding:26px 26px 30px;box-shadow:var(--shadow-panel);
+}
+.arch-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px}
+.arch-head b{font-size:15px;font-weight:500;letter-spacing:.06em;color:var(--fg)}
+.arch-head button{
+  background:none;border:0;color:var(--fg-4);font-size:22px;line-height:1;cursor:pointer;padding:0 2px
+}
+.arch-head button:hover{color:var(--fg-2)}
+.arch-note{
+  margin:0 0 22px;font-size:12px;line-height:1.85;color:var(--fg-4);
+  border-left:2px solid var(--line);padding-left:12px
+}
+.arch-note b{color:var(--fg-3);font-weight:500}
+.arch-ai{margin:0 0 22px}
+.arch-ai>h4{
+  margin:0 0 10px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--fg-3);font-weight:500;display:flex;align-items:center;gap:10px
+}
+.arch-ai>h4::after{content:"";flex:1;height:1px;background:var(--line)}
+.arch-ai>h4 i{font-style:normal;color:var(--fg-5);letter-spacing:.05em;text-transform:none}
+.arch-run{
+  display:grid;grid-template-columns:minmax(96px,auto) 1fr auto;gap:4px 14px;
+  align-items:baseline;padding:8px 0;border-top:1px solid var(--line-soft);
+  font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums
+}
+.arch-run .when{color:var(--fg-5);white-space:nowrap}
+.arch-run .what code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;
+  color:var(--fg-2);word-break:break-all
+}
+.arch-run .what .fp{display:block;color:var(--fg-4);margin-top:2px}
+.arch-run .what .fp.none{font-style:italic}
+.arch-run .n{color:var(--fg-5);white-space:nowrap}
+@media (max-width:700px){
+  #arch{padding:0;align-items:stretch}
+  .arch-panel{max-height:100%;border-radius:0;border:0;padding:22px 18px 40px}
+  .arch-run{grid-template-columns:1fr auto}
+  .arch-run .when{grid-column:1/-1}
+}
 
 .skel{position:absolute;inset:0;background:linear-gradient(100deg,var(--skel-a),var(--skel-b) 42%,var(--skel-a) 78%);
   background-size:280% 100%;animation:sh 1.5s linear infinite}
@@ -752,12 +822,35 @@ footer a:hover{color:var(--accent-text)}
     <span id="footStat">ClaudeAtelier</span>
     <span>·</span>
     <a href="README.md">README</a>
-    <a href="Cards/cards-index.csv">Claude 台账</a>
-    <a href="deepseekv4flash/Cards/cards-index.csv">DeepSeek 台账</a>
+    <!-- 台账链接按 LEDGERS 生成：写死就会漏掉后来的第三第四家，
+         而漏掉不报错，只是那一家的档案从页面上消失了 -->
+    <span id="footLedgers"></span>
     <a href="prompts/card-charter.md" title="所有参与的 AI 拿到的是同一份题目，逐字相同">创作章程</a>
+    <a href="#" id="archBtn" title="每只手的版本串与后端指纹变更时间线">溯源档案</a>
     <span class="spacer"></span>
     <span>← → 翻页　空格翻面　Esc 关闭</span>
   </footer>
+</div>
+
+<!-- 溯源档案：每只手的版本串与后端指纹变更时间线。
+     model 列只记别名解析后的版本串，同一个版本串底下的权重可以已经换过一轮 ——
+     那种替换从 model 上完全看不出来，只有 fingerprint 会跳。所以这一页看的是
+     「这只手中途有没有被换掉」，是这个档案独有、别处不存在的观测。 -->
+<div id="arch" role="dialog" aria-modal="true" aria-label="溯源档案" hidden>
+  <div class="arch-panel">
+    <div class="arch-head">
+      <b>溯源档案</b>
+      <button id="archClose" type="button" aria-label="关闭">×</button>
+    </div>
+    <p class="arch-note">
+      每张卡都记下了执笔时的模型版本串，以及服务端回声的<b>后端配置指纹</b>。
+      两者不是一回事：别名会漂，版本串也可能一直不变，而底下的权重已经换过一轮 ——
+      那种替换只有指纹看得见。下面按时间列出每只手的连续区段，跨段就是变过。
+      指纹写「未记录」表示那一班拿不到（沙箱里作画没有 HTTP 响应可读，
+      2026-08-17 之前的行也没有这一列），读作<b>不知道</b>，不是「没变过」。
+    </p>
+    <div id="archBody"></div>
+  </div>
 </div>
 
 <!-- 灯箱 -->
@@ -810,17 +903,21 @@ const LEDGERS = [
   /* base：该 AI 的顶层目录。Claude 是在位者，留在根目录（base 为空）；
      新来的各占一个自己的目录，内部镜像 Cards/web/text 结构。
      台账的 filename 列一律是 {YYYY-MM}/xxx.png，拼上 base 才是完整路径。 */
+  /* code：这条产线是否留下手稿（模型为那张卡现写的渲染脚本）。
+     Claude 那条线跑在 Cowork 沙箱里、不走 agents/ 那套代码，没有手稿可存，
+     所以这里是 false —— 灯箱据此决定要不要给「看手稿」这个入口。
+     文件存不存在前端查不到，只能按产线声明；缺图缺文件都由链接自己 404。 */
   { ai:"claude",   label:"Claude",   prefix:"NO.", model:"claude-opus-5",
-    base:"",                  url:"Cards/cards-index.csv" },
+    base:"", code:false,      url:"Cards/cards-index.csv" },
   { ai:"deepseek", label:"DeepSeek", prefix:"NO.", model:"",
-    base:"deepseekv4flash/",  url:"deepseekv4flash/Cards/cards-index.csv" },
+    base:"deepseekv4flash/", code:true, url:"deepseekv4flash/Cards/cards-index.csv" },
   /* ai 必须与 agents/deepseek/config.py 注册表里的 key 逐字一致 ——
      它就是台账 ai 列里存的值，对不上前端会认成两个不同的 AI。
      顺序即对照展墙的列序，加在末尾，已有的列位不动。 */
   { ai:"deepseek-pro", label:"DeepSeek Pro", prefix:"NO.", model:"",
-    base:"deepseekv4pro/",    url:"deepseekv4pro/Cards/cards-index.csv" },
+    base:"deepseekv4pro/", code:true, url:"deepseekv4pro/Cards/cards-index.csv" },
   { ai:"kimi-k3",  label:"Kimi K3",  prefix:"NO.", model:"",
-    base:"kimik3/",           url:"kimik3/Cards/cards-index.csv" },
+    base:"kimik3/", code:true, url:"kimik3/Cards/cards-index.csv" },
 ];
 const CSV_URL  = LEDGERS[0].url;     // 旧名保留，页脚等处仍在用
 const WEB_DIR  = "web/";
@@ -1024,6 +1121,18 @@ function build(payloads){
         webRaw: webRel,
         origin: ORIGIN_BASE ? ORIGIN_BASE + encPath(file) : "",
         txt: encPath(P.base + "text/" + file.replace(/\.png$/i, ".md")),
+        /* 手稿：模型为这张卡现写的渲染脚本，原样存档。别处看不到这个东西，
+           所以它不该只作为一个 _headers 里的缓存规则存在。 */
+        code: P.code ? encPath(P.base + "code/" + file.replace(/\.png$/i, ".py")) : "",
+        /* 过程记录（provenance）。台账末尾那批列，画廊不需要、档案馆需要——
+           而这个站两样都是。空字符串一律读作「不知道」，**不是 0**：
+           08-12 之前的行根本没记过，显示成 0 就是编造。 */
+        rounds: g("rounds"), attempts: g("research_attempts"),
+        durS: g("duration_s"), sha256: g("sha256"),
+        /* 后端配置指纹。同一个别名、同一个版本串，底下的权重可以已经换过
+           一轮，那种替换从 model 列上完全看不出来 —— 这一列补的就是那一半。
+           台账里还没有这列的产线，g() 返回空，读作「拿不到」。 */
+        fingerprint: g("fingerprint"),
         quote: g("quote"), fact: g("fact"), source: g("source"),
         /* 降级发布标记。空 = 正常出卡；有值说明这张是「没过检查也照发」的那种。
            2026-08-12 起各产线不再空班：宁可展出一张有毛病的卡，也不留一个
@@ -1064,6 +1173,10 @@ function build(payloads){
     let v = null; try{ v = localStorage.getItem(VIEW_KEY); }catch(e){}
     if (v === "wall") setView("wall", false);
   }
+
+  /* 台账链接。写死只会漏掉后来的每一家，而漏掉不报错。 */
+  $("#footLedgers").innerHTML = LEDGERS.map(L =>
+    `<a href="${L.url}">${esc(L.label)} 台账</a>`).join(" ");
 
   $("#footStat").textContent =
     `共 ${CARDS.length} 张 · ${DICT.ai.length} 个 AI · ${DICT.style.length} 种风格 · ${DICT.lang.length} 种语言 · ${DICT.topic.length} 个领域`;
@@ -1632,6 +1745,122 @@ $("#todayBtn").addEventListener("click", () => {
 });
 
 /* ============================================================
+   过程记录与核实状态
+   ============================================================ */
+
+/* 秒 -> 「8 分 49 秒」。展签给人看，不给机器看。 */
+function humanDur(sec){
+  const n = Math.round(+sec);
+  if (!isFinite(n) || n <= 0) return "";
+  return n >= 60 ? `${Math.floor(n/60)} 分 ${n%60} 秒` : `${n} 秒`;
+}
+
+/* 「这张是怎么画出来的」。
+   空值一律省略，**绝不补 0** —— rounds 空着表示「不知道」（08-12 之前的
+   行没记过），显示成 0 就是编造出一条档案里没有的事实。 */
+function provHTML(c){
+  const bits = [];
+  if (c.rounds)   bits.push(`画了 <b>${esc(c.rounds)}</b> 轮`);
+  if (c.attempts) bits.push(`选题 <b>${esc(c.attempts)}</b> 次`);
+  const d = humanDur(c.durS);
+  if (d)          bits.push(`耗时 <b>${esc(d)}</b>`);
+  if (c.fingerprint) bits.push(`指纹 <code>${esc(c.fingerprint)}</code>`);
+  if (c.sha256)   bits.push(`原图 <code>${esc(c.sha256.slice(0,12))}</code>`);
+  if (!bits.length) return "";
+  return `<div class="b-prov">` + bits.map(b => `<span>${b}</span>`).join("") + `</div>`;
+}
+
+/* 核实状态。2026-08-12 证据闸门下线之后，卡面那条冷知识是模型自己声称并
+   自行查证的，程序没有把它和网页原文逐字比对过。断言、来源、所引原句照旧
+   收集、照旧存进文字副本 —— 这里要做的只是把「没被程序验过」说出来。
+   博物馆写 "attribution uncertain" 是同一件事。 */
+function verifyHTML(c){
+  return `<div class="b-verify">`
+       + `冷知识由执笔的模型自行查证；逐条断言与所引原句存档在`
+       + `<a href="${c.txt}" target="_blank">文字副本</a>里，未经程序逐字校验。`
+       + `</div>`;
+}
+
+/* ============================================================
+   溯源档案：每只手的版本串 / 后端指纹变更时间线
+   ============================================================ */
+
+/* 把一家的卡按时间升序切成「连续区段」：相邻两张只要 model 或 fingerprint
+   变了就断开。用连续分段而不是去重集合 —— 换回去也是一次变更，档案要记下
+   它变过两次，而不是「一共出现过两个值」。 */
+function archRuns(cards){
+  const asc = cards.slice().sort((a,b) => a.dt < b.dt ? -1 : a.dt > b.dt ? 1 : 0);
+  const runs = [];
+  asc.forEach(c => {
+    const model = c.model || "", fp = c.fingerprint || "";
+    const last = runs[runs.length-1];
+    if (last && last.model === model && last.fp === fp){
+      last.to = c.dt; last.n++;
+    } else {
+      runs.push({ model, fp, from:c.dt, to:c.dt, n:1 });
+    }
+  });
+  return runs;
+}
+
+function renderArch(){
+  const body = $("#archBody");
+  const byAi = new Map();
+  CARDS.forEach(c => {
+    if (!byAi.has(c.ai)) byAi.set(c.ai, []);
+    byAi.get(c.ai).push(c);
+  });
+
+  /* 顺序跟着 LEDGERS 走，不跟着「谁出的卡多」走 —— 和对照展墙同一个道理，
+     位置恒定才读得下去。 */
+  const html = LEDGERS.map(L => {
+    const list = byAi.get(L.ai);
+    if (!list || !list.length) return "";
+    const runs = archRuns(list);
+    const rows = runs.map(r => {
+      const span = r.from.slice(0,10) === r.to.slice(0,10)
+        ? r.from.slice(0,10)
+        : `${r.from.slice(0,10)} → ${r.to.slice(0,10)}`;
+      const fp = r.fp
+        ? `<span class="fp">指纹 <code>${esc(r.fp)}</code></span>`
+        : `<span class="fp none">指纹未记录</span>`;
+      return `<div class="arch-run">`
+           +   `<span class="when">${esc(span)}</span>`
+           +   `<span class="what"><code>${esc(r.model || "版本串未记录")}</code>${fp}</span>`
+           +   `<span class="n">${r.n} 张</span>`
+           + `</div>`;
+    }).join("");
+    return `<section class="arch-ai">`
+         +   `<h4>${esc(L.label)}<i>${list.length} 张 · ${runs.length} 个区段</i></h4>`
+         +   rows
+         + `</section>`;
+  }).join("");
+
+  body.innerHTML = html || `<div class="empty" style="display:block">还没有卡片</div>`;
+}
+
+const archBox = $("#arch");
+let archLastFocus = null;
+
+function openArch(){
+  renderArch();
+  archLastFocus = document.activeElement;
+  archBox.hidden = false;
+  document.body.style.overflow = "hidden";
+  $("#archClose").focus();
+}
+function closeArch(){
+  archBox.hidden = true;
+  // 灯箱可能同时开着，别把它的滚动锁一起解了
+  if (!box.classList.contains("on")) document.body.style.overflow = "";
+  if (archLastFocus) archLastFocus.focus();
+}
+
+$("#archBtn").addEventListener("click", e => { e.preventDefault(); openArch(); });
+$("#archClose").addEventListener("click", closeArch);
+archBox.addEventListener("click", e => { if (e.target === archBox) closeArch(); });
+
+/* ============================================================
    灯箱
    ============================================================ */
 function open(i){
@@ -1665,6 +1894,8 @@ function open(i){
             }).join("<br>") +
           `<br><span style="opacity:.75">具体问题见文字副本。</span></div>`
         : ``}
+     ${provHTML(c)}
+     ${verifyHTML(c)}
      <div class="b-foot">
        <div class="b-meta">
          <!-- 谁做的，是这个博物馆最要紧的一条信息，不该藏在 tooltip 里 -->
@@ -1678,6 +1909,9 @@ function open(i){
             : `<span class="none">此条未附来源</span>`}
          <span class="sep">·</span>
          <a href="${c.txt}" target="_blank">文字副本</a>
+         ${c.code
+            ? `<span class="sep">·</span><a href="${c.code}" target="_blank">看手稿</a>`
+            : ``}
          <span class="sep">·</span>
          <a href="${c.web}" download>下载压缩版</a>
          ${c.origin ? `<span class="sep">·</span><a href="${c.origin}" download>下载原图</a>` : ``}
@@ -1811,6 +2045,8 @@ flipper.addEventListener("click", e => { if (!swiped && !e.target.closest("a")) 
 box.addEventListener("click", e => { if (e.target === box || e.target === $("#stage")) close(); });
 
 addEventListener("keydown", e => {
+  // 溯源档案压在最上层，Esc 先关它
+  if (e.key === "Escape" && !archBox.hidden){ closeArch(); return; }
   if (e.key === "Escape" && (sheetDd || document.querySelector(".dd.open"))){
     closeSheet();
     document.querySelectorAll(".dd").forEach(d => d.classList.remove("open"));

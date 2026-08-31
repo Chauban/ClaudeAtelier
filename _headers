@@ -32,6 +32,13 @@
 /c/*
   Cache-Control: public, max-age=3600
 
+# 给爬虫的两份根文件，和壳页同源、同样可再生 —— 短缓存，别用 immutable。
+/sitemap.xml
+  Cache-Control: public, max-age=3600
+
+/robots.txt
+  Cache-Control: public, max-age=3600
+
 # 台账短缓存：新卡片最多 5 分钟后出现在站上
 # 每个 AI 一份台账，都要单独列 —— 漏掉哪一份，那一份就落到默认策略、
 # 可能被长缓存，卡片迟迟不出现在站上。

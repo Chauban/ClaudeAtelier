@@ -34,6 +34,7 @@ import argparse
 import csv
 import glob
 import io
+import json
 import os
 import re
 import sys
@@ -47,6 +48,12 @@ OUT_DIR = os.path.join(ROOT, "c")
 SITE_ORIGIN = os.environ.get("ATELIER_SITE_ORIGIN", "").rstrip("/")
 
 SITE_NAME = "ClaudeAtelier"
+
+# 台账里没有 model 列的展区，展签上写哪个版本串。
+# Claude 那份是项目最早的 12 列 schema，它跑在 Cowork 的定时任务里、用的是
+# Opus 5 —— 由项目所有者告知，不是推断出来的。与 index.html 的 LEDGERS 一致。
+# 行里带了 model 的，一律以行内的为准。
+DEFAULT_MODEL = {"claude": "claude-opus-5"}
 
 
 def ai_labels():
@@ -103,6 +110,9 @@ PAGE = """<!doctype html>
 <meta name="twitter:title" content="{serial} · {style}">
 <meta name="twitter:description" content="{desc}">
 <meta name="twitter:image" content="{img_abs}">
+<meta property="og:image:alt" content="{serial}：{style}风格的竖版卡片">
+<meta property="og:locale" content="{oglocale}">
+<script type="application/ld+json">{jsonld}</script>
 <style>
 :root{{color-scheme:light dark;--bg:#faf9f7;--fg:#1a1a1c;--fg2:#5a5a62;--fg3:#8a8a94;--line:#e3e0da;--card:#fff}}
 @media (prefers-color-scheme:dark){{:root{{--bg:#141416;--fg:#ececf0;--fg2:#a8a8b2;--fg3:#70707a;--line:#2a2a2e;--card:#1c1c20}}}}
@@ -128,6 +138,13 @@ dl{{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0 0 26px;
 dt{{color:var(--fg3)}}
 dd{{margin:0}}
 a.link{{color:inherit}}
+.prov{{margin:0 0 20px;font-size:13px;color:var(--fg3);line-height:1.9}}
+.prov b{{font-weight:500;color:var(--fg2);font-variant-numeric:tabular-nums}}
+.prov .k{{color:var(--fg3)}}
+.prov code{{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+ word-break:break-all;color:var(--fg2)}}
+.note{{margin:0 0 26px;font-size:12.5px;line-height:1.8;color:var(--fg3)}}
+.note a{{color:var(--fg2)}}
 .foot{{font-size:13px;color:var(--fg3);border-top:1px solid var(--line);padding-top:18px}}
 .foot a{{color:var(--fg2)}}
 </style>
@@ -155,6 +172,10 @@ a.link{{color:inherit}}
     {source_row}
   </dl>
 
+  {prov_block}
+
+  <p class="note">{verify_note}</p>
+
   <div class="foot">
     <a href="{deep}">在收藏里查看这张卡 →</a>{extra}
   </div>
@@ -162,6 +183,87 @@ a.link{{color:inherit}}
 </body>
 </html>
 """
+
+def enc_path(p):
+    """路径逐段百分号编码。
+
+    只用在**绝对** URL 上（og:image / canonical）：抓预览图的是各家聊天软件和
+    爬虫，不是浏览器，对裸 UTF-8 路径的容忍度参差不齐。页面里的相对 <img src>
+    保持原样 —— 那条路径浏览器一直读得懂，改了反而和历史壳页不一致。
+    """
+    from urllib.parse import quote
+    return "/".join(quote(seg) for seg in str(p).split("/"))
+
+
+def iso_dt(s):
+    """台账的 "YYYY-MM-DD HH:MM" -> "YYYY-MM-DDTHH:MM"。
+
+    不补时区：台账记的是生成端本地时刻，各条产线所在时区并不相同，
+    硬补一个 offset 就是编造。schema.org 允许不带 offset 的本地时刻。
+    """
+    s = (str(s or "")).strip()
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})", s)
+    if m:
+        return m.group(1) + "T" + m.group(2)
+    return m.group(1) if (m := re.match(r"^(\d{4}-\d{2}-\d{2})", s)) else ""
+
+
+def human_dur(sec):
+    """秒 -> 「8 分 49 秒」。展签上给人看，不是给机器看。"""
+    try:
+        n = int(float(sec))
+    except (TypeError, ValueError):
+        return ""
+    if n <= 0:
+        return ""
+    return "{} 分 {} 秒".format(n // 60, n % 60) if n >= 60 else "{} 秒".format(n)
+
+
+def jsonld_for(d):
+    """schema.org/VisualArtwork。
+
+    展签要能被机器读成「作品 + 作者 + 日期 + 媒介」，否则爬虫只看得见一段
+    散文。creator 用 SoftwareApplication 而不是 Person —— 执笔的确实不是人，
+    softwareVersion 写台账 model 列那个解析后的版本串（别名会漂，档案不能漂）。
+    """
+    o = {
+        "@context": "https://schema.org",
+        "@type": "VisualArtwork",
+        "name": "{} · {}".format(d["serial"], d["style"]),
+        "headline": d["quote"],
+        "abstract": d["fact"],
+        "artform": "Digital artwork",
+        "artMedium": "Programmatic rendering",
+        "genre": d["style"],
+        "about": d["topic"],
+        "creator": {
+            "@type": "SoftwareApplication",
+            "name": d["label"],
+            "applicationCategory": "Large language model",
+        },
+        "isPartOf": {"@type": "Collection", "name": SITE_NAME},
+    }
+    if d.get("model"):
+        o["creator"]["softwareVersion"] = d["model"]
+    if d.get("lang_tag"):
+        o["inLanguage"] = d["lang_tag"]
+    if d.get("iso"):
+        o["dateCreated"] = d["iso"]
+    if d.get("canon"):
+        o["url"] = d["canon"]
+    if d.get("img_abs"):
+        o["image"] = d["img_abs"]
+    if d.get("source"):
+        o["citation"] = d["source"]
+    if d.get("sha256"):
+        # 原图不进仓库，这串是它唯一进得了 git 的部分，当作藏品编目号用。
+        o["identifier"] = "sha256:" + d["sha256"]
+    if SITE_ORIGIN:
+        o["isPartOf"]["url"] = SITE_ORIGIN + "/"
+    txt = json.dumps(o, ensure_ascii=False, separators=(",", ":"))
+    # 内联 JSON 里出现 "</script" 会提前关掉标签。转成 < 是 JSON 合法写法。
+    return txt.replace("<", "\\u003c").replace("&", "\\u0026")
+
 
 HTML_LANG = {
     "简体中文": "zh-Hans", "繁体中文（台湾用语）": "zh-Hant-TW",
@@ -171,9 +273,92 @@ HTML_LANG = {
 }
 
 
+# og:locale 用的是下划线的 language_TERRITORY，和 html lang 不是一套写法。
+OG_LOCALE = {
+    "zh-Hans": "zh_CN", "zh-Hant-TW": "zh_TW", "zh-Hant-HK": "zh_HK",
+    "yue": "zh_HK", "en": "en_US", "ja": "ja_JP", "fr": "fr_FR",
+    "de": "de_DE", "es": "es_ES", "ko": "ko_KR", "it": "it_IT",
+}
+
+# 卡面上那条冷知识的核实状态。证据闸门 2026-08-12 下线之后，断言是模型
+# 自己声称的、程序没有逐字比对过 —— 展签必须说出这件事，否则读者会以为
+# 它被验过。博物馆写 "attribution uncertain" 就是这个用途。
+VERIFY_NOTE = ("冷知识由执笔的模型自行查证。逐条断言、来源与所引原句"
+               "存档在<a href=\"../../{textrel}\">纯文字副本</a>里，"
+               "<b>未经程序逐字校验</b>，留作事后核实。")
+
+
+def prov_html(r):
+    """过程记录。台账里早就有，画廊不展、档案馆要展 ——
+
+    而这个站两样都是，所以展签上给它一块地方。空值一律省略：`rounds` 空着
+    表示「不知道」（08-12 之前的行没记过），不是 0，绝不能显示成 0。
+    """
+    bits = []
+    rounds = (r.get("rounds") or "").strip()
+    if rounds:
+        bits.append(('画了几轮', '<b>{}</b> 轮'.format(esc(rounds))))
+    att = (r.get("research_attempts") or "").strip()
+    if att:
+        bits.append(('选题尝试', '<b>{}</b> 次'.format(esc(att))))
+    dur = human_dur(r.get("duration_s"))
+    if dur:
+        bits.append(('从开工到落地', '<b>{}</b>'.format(esc(dur))))
+    fp = (r.get("fingerprint") or "").strip()
+    if fp:
+        bits.append(('后端指纹', '<code>{}</code>'.format(esc(fp))))
+    sha = (r.get("sha256") or "").strip()
+    if sha:
+        bits.append(('原图指纹', '<code>{}</code>'.format(esc(sha[:16]))))
+    if not bits:
+        return ""
+    return ('<div class="prov">'
+            + '<br>'.join('<span class="k">{}</span>　{}'.format(k, v) for k, v in bits)
+            + '</div>')
+
+
+def write_sitemap(entries, check=False):
+    """sitemap.xml + robots.txt。
+
+    为什么必须有：`index.html` 是纯前端站，卡片列表是 JS 事后 fetch 出来的，
+    爬虫顺着首页**发现不了任何一个壳页**。壳页把内容写死进了 HTML，但没人
+    告诉爬虫它们存在 —— 两件事要一起做才有意义。
+
+    sitemap 的 loc 规范上要求绝对 URL，所以没设 SITE_ORIGIN 时干脆不写：
+    宁可少一份，也不写一份地址是错的。
+    """
+    if not SITE_ORIGIN:
+        print("提醒：没设 ATELIER_SITE_ORIGIN，跳过 sitemap.xml（loc 必须是绝对 URL）。")
+        return []
+
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+             "  <url><loc>{}/</loc><changefreq>hourly</changefreq>"
+             "<priority>1.0</priority></url>".format(SITE_ORIGIN)]
+    for rel, lastmod in entries:
+        lines.append("  <url><loc>{}/{}</loc>{}<changefreq>monthly</changefreq>"
+                     "<priority>0.7</priority></url>".format(
+                         SITE_ORIGIN, rel,
+                         "<lastmod>{}</lastmod>".format(lastmod) if lastmod else ""))
+    lines.append("</urlset>")
+    xml = "\n".join(lines) + "\n"
+
+    robots = ("User-agent: *\n"
+              "Allow: /\n"
+              "Sitemap: {}/sitemap.xml\n".format(SITE_ORIGIN))
+
+    out = []
+    for name, text in (("sitemap.xml", xml), ("robots.txt", robots)):
+        if not check:
+            io.open(os.path.join(ROOT, name), "w",
+                    encoding="utf-8", newline="\n").write(text)
+        out.append(name)
+    return out
+
+
 def build(check=False):
     labels = ai_labels()
-    written, rows_total = [], 0
+    written, rows_total, sitemap_rows = [], 0, []
 
     for path, base in ledgers():
         with io.open(path, encoding="utf-8-sig", newline="") as f:
@@ -196,7 +381,8 @@ def build(check=False):
             deep = ("../../#" + ("" if ai == "claude" else ai + "/") + serial)
             canon = (SITE_ORIGIN + "/c/{}/{}.html".format(ai, no4)) if SITE_ORIGIN \
                 else "/c/{}/{}.html".format(ai, no4)
-            img_abs = (SITE_ORIGIN + "/" + webrel) if SITE_ORIGIN else "/" + webrel
+            img_abs = ((SITE_ORIGIN + "/" + enc_path(webrel)) if SITE_ORIGIN
+                       else "/" + enc_path(webrel))
 
             extra = ' · <a href="../../{}">纯文字</a>'.format(textrel)
             if os.path.exists(os.path.join(ROOT, coderel.replace("/", os.sep))):
@@ -206,11 +392,29 @@ def build(check=False):
             src = (r.get("source") or "").strip()
             source_row = ('<dt>来源</dt><dd><a class="link" href="{0}" rel="nofollow noopener">'
                           '{1}</a></dd>').format(esc(src), esc(clip(src, 60))) if src else ""
-            model = (r.get("model") or "").strip()
+            # 台账没有 model 列时退回注册表的默认（Claude 那份是最早的 12 列 schema）
+            model = (r.get("model") or "").strip() or DEFAULT_MODEL.get(ai, "")
+
+            htmllang = HTML_LANG.get((r.get("lang") or "").strip(), "zh-Hans")
+            label = labels.get(ai, ai)
+            jsonld = jsonld_for({
+                "serial": serial, "style": (r.get("style") or "").strip(),
+                "quote": (r.get("quote") or "").strip(),
+                "fact": (r.get("fact") or "").strip(),
+                "topic": (r.get("topic") or "").strip(),
+                "label": label, "model": model, "lang_tag": htmllang,
+                "iso": iso_dt(r.get("datetime")), "canon": canon,
+                "img_abs": img_abs, "source": src,
+                "sha256": (r.get("sha256") or "").strip(),
+            })
 
             html = PAGE.format(
-                htmllang=HTML_LANG.get((r.get("lang") or "").strip(), "zh-Hans"),
-                site=SITE_NAME, serial=serial, label=esc(labels.get(ai, ai)),
+                htmllang=htmllang,
+                oglocale=OG_LOCALE.get(htmllang, "zh_CN"),
+                jsonld=jsonld,
+                prov_block=prov_html(r),
+                verify_note=VERIFY_NOTE.format(textrel=textrel),
+                site=SITE_NAME, serial=serial, label=esc(label),
                 style=esc(r.get("style")), S=esc(r.get("S")),
                 lang=esc(r.get("lang")), topic=esc(r.get("topic")),
                 dt=esc(r.get("datetime")),
@@ -227,6 +431,12 @@ def build(check=False):
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 io.open(out, "w", encoding="utf-8", newline="\n").write(html)
             written.append(rel)
+            # lastmod 用卡片自己的日期，不用文件 mtime —— 壳页是可再生的，
+            # 每次全量重跑 mtime 都会变成今天，那对爬虫是纯噪音。
+            sitemap_rows.append(("c/{}/{}.html".format(ai, no4),
+                                 iso_dt(r.get("datetime"))[:10]))
+
+    extra_files = write_sitemap(sitemap_rows, check)
 
     print("台账 {} 行 · {} 壳页 {} 个".format(
         rows_total, "将生成" if check else "已生成", len(written)))
@@ -235,6 +445,8 @@ def build(check=False):
         by_ai[w.split("/")[1]] = by_ai.get(w.split("/")[1], 0) + 1
     for k in sorted(by_ai):
         print("  c/{}/  {} 个".format(k, by_ai[k]))
+    for f in extra_files:
+        print("  {}  {}".format(f, "将写" if check else "已写"))
     if not SITE_ORIGIN:
         print("\n提醒：没设 ATELIER_SITE_ORIGIN，og:image 只能写根相对路径，"
               "\n      微信/Twitter 等多半抓不到预览图。填上站点地址后重跑一次即可。")

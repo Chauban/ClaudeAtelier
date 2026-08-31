@@ -49,16 +49,20 @@ jobs:
           git config user.name  "atelier-shells[bot]"
           git config user.email "atelier-shells@users.noreply.github.com"
           git add c
-          # 只允许 c/ 下的 html。这一步是上面那段「独占 c/」的机械保证 ——
-          # 生成脚本要是哪天写歪了路径，在这里停住，而不是把别人的文件推上去。
-          BAD=$(git diff --cached --name-only | grep -v '^c/[^/]\+/[0-9]\+\.html$' || true)
+          # sitemap/robots 只有在设了 SITE_ORIGIN 时才生成，可能不存在
+          for f in sitemap.xml robots.txt; do [ -f "$f" ] && git add "$f" || true; done
+          # 只允许 c/ 下的 html，外加两份给爬虫看的根文件。这一步是上面那段
+          # 「独占 c/」的机械保证 —— 生成脚本要是哪天写歪了路径，在这里停住，
+          # 而不是把别人的文件推上去。sitemap/robots 同样只有这一个任务会写：
+          # 它遍历全部台账，是唯一知道「站上一共有哪些页」的地方。
+          BAD=$(git diff --cached --name-only | grep -Ev '^(c/[^/]+/[0-9]+\.html|sitemap\.xml|robots\.txt)$' || true)
           if [ -n "$BAD" ]; then
             echo "暂存区出现了 c/ 以外的路径，已中止："; echo "$BAD"; exit 1
           fi
           if git diff --cached --quiet; then
             echo "壳页没有变化"; exit 0
           fi
-          N=$(git diff --cached --name-only | wc -l)
+          N=$(git diff --cached --name-only | grep -c '^c/' || true)
           git commit -q -m "壳页 · 更新 ${N} 个"
           for i in 1 2 3; do
             git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD && exit 0
