@@ -11,13 +11,19 @@
 """
 from clients.base import ClientError, chat as _chat, extract_json  # noqa: F401
 
-# 各阶段默认的思考档位。
+# 各阶段默认的思考档位。三步都给 high —— 选题核实、写渲染代码、看图自检，
+# 要的都是判断力，省在这里是省错了地方。
 #
-# 写渲染代码给 low：DeepSeek 那条线上「推理烧光预算、可见输出为零」的坑
-# （config.py 里记着）在常开思考的模型上更容易撞。区别是 K3 真的认这个参数。
-# 选题核实与看图自检给 high：那两步要的正是判断力，省在这里是省错了地方。
+# 2026-09-01 把 render 从 low 改回 high。原来的理由是「DeepSeek 那条线上
+# 『推理烧光预算、可见输出为零』的坑（config.py 里记着）在常开思考的模型上
+# 更容易撞」—— 但那个坑是 DeepSeek 撞的，K3 一次都没撞过。拿别家的事故按住
+# 这只手的思考深度，等于让它带着减半的算力去答同一道题，而 Claude 那条线
+# 写渲染脚本时想多久都行。**那不是能力差别，是规则差别。**
+#
+# 真撞上了有兜底：compose_vision.run() 遇到空输出会原样重发那一轮，并把这张卡
+# 剩下的轮次都降到 low。降档是事后止损，不是每张卡预先付的税。
 EFFORT = {
-    "render": "low",
+    "render": "high",
     "research": "high",
     "critique": "high",
 }

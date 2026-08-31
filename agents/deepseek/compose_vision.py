@@ -67,6 +67,20 @@ def feedback_image(png_path):
 def build_prompt(brief):
     charter = _read(CHARTER)
     appendix = _read(os.path.join(HERE, "prompts", "runtime_appendix_vision.md"))
+    # 字体清单当场扫出来注入。环境说明里原先是一份写死的表格，自己写着「清单会
+    # 过时，先查再用，不要照抄」—— 而脚本不能 import os、跑不了 shell，它根本
+    # 没有查的手段。**既要求先查、又不给查的手段**，是 2026-09-01 之前的一处
+    # 自相矛盾；Claude 那条线的 SKILL.md 让它开工前先 ls 字体目录，这里补上等价物。
+    #
+    # inventory_text() 刻意不排序、不打分、不筛选：查是我们代它做的（它做不到），
+    # 选是它自己的事 —— 避开 Italic/Condensed、按 face 名分 SC/TC/HK 那些判断，
+    # Claude 自己做，这条线也得自己做。扫不出来不该拖垮整张卡，降级成一句提示。
+    try:
+        import fonts
+        inv = fonts.inventory_text()
+    except Exception as e:                                   # noqa: BLE001
+        inv = u"（字体清单没扫出来：{}。先用小字号试画一行确认字体可用。）".format(e)
+    appendix = appendix.replace("{{FONT_INVENTORY}}", inv)
     sysmsg = (
         "你是 ClaudeAtelier 的卡片设计师。严格遵守《卡片创作章程》的全部条款。\n"
         "你能看见自己画出的图——每一轮渲染后我们会把它发给你，"
@@ -108,11 +122,20 @@ CRITIQUE_SYS = (
 CRITIQUE_ASK = (
     # 只陈述事实，不据此调低标准 —— 「我们只给你看小图，所以你别那么挑」
     # 是拿环境的省钱去换判断的准头，方向反了。真觉得看不清，该给更大的图。
-    "这是刚画出来的卡（等比缩到 {w}×{h}，原图是它的 2 倍）。目标风格：{style}。\n\n"
+    #
+    # 2026-09-01 更正措辞。原话是「等比缩到 {w}×{h}，原图是它的 2 倍」，听上去
+    # 像在道歉：你看到的是被砍过的版本 —— 于是「大概是缩图糊了」就成了放过一处
+    # 毛病的现成理由。事实相反：卡按逻辑宽 800~1200、scale=2 渲染，回灌的 1024
+    # 宽正好是这张卡设计时的那个尺寸。而且 Claude 那条线用 Read 看 PNG 同样降
+    # 采样（长边约 1568，一张 2000×3560 到手约 880 宽），两边看到的分辨率本来
+    # 就在同一档。所以该改的是这句话，不是 VISION_FEEDBACK_WIDTH。
+    "这是刚画出来的卡，等比缩到 {w}×{h} —— 这就是这张卡设计时的尺寸"
+    "（原图是它的 2 倍，那是为印刷留的余量），不是缩略图；看不清就是真的看不清。"
+    "目标风格：{style}。\n\n"
     "卡面上应当**且只应当**出现这四样文字，逐字如下：\n"
     "  流水号：{serial}\n  日期：{date}\n  金句：{quote}\n  冷知识：{fact}\n\n"
     "请**逐块**核对：每一块是否完整、逐字无误（标点的全形半形也算）、清晰、"
-    "没被装饰或图层盖住、没超出画布、字号在这个缩略尺寸下仍读得出来；"
+    "没被装饰或图层盖住、没超出画布、字号在这个尺寸下仍读得出来；"
     "中文有没有变成方框；字形是不是{lang}该用的；西文单词有没有被从中间断行；"
     "标点有没有落在行首。\n"
     "然后退开看整张：构图重心、留白、以及有多像「{style}」。\n\n"
@@ -196,11 +219,16 @@ def run(brief, workdir, verbose=True):
     # （最后一次回声，渲染和判词两处调用都算）—— 两列并排放在台账里，
     # 口径不一样会比缺一列更误导人。
     fp = None
+    # 本轮的思考档位。None = 用厂商客户端为 render 阶段定的默认值（K3 是 high）。
+    # 只有真撞上「推理烧光预算、可见输出为零」时，才把之后的轮次降到 low。
+    # 预先降档是拿成本去换这只手的思考深度，而 Claude 那条线写脚本时想多久都行 ——
+    # 那不是能力差别，是规则差别。
+    effort = None
 
     for rd in range(1, MAX_ROUNDS + 1):
         if verbose:
             print("\n--- 第 {} 轮 ---".format(rd))
-        msg, meta = client.chat(messages, stage="render")
+        msg, meta = client.chat(messages, stage="render", reasoning=effort)
         meter.record("render", meta)
         resolved = meta.get("model") or resolved
         fp = meta.get("fingerprint") or fp
@@ -214,8 +242,10 @@ def run(brief, workdir, verbose=True):
             # 推理烧光预算 -> 可见输出为空。别拿假报错误导它，重发同一轮。
             history.append({"round": rd, "stage": "empty",
                             "error": "模型没有产出可见内容（finish={}）".format(meta["finish"])})
+            effort = "low"   # 事后止损，不是每张卡预先付的税
             if verbose:
-                print("  [空输出] finish={} —— 重来一次并要求精简思考".format(meta["finish"]))
+                print("  [空输出] finish={} —— 降到 low 重来一次并要求精简思考".format(
+                    meta["finish"]))
             messages = messages[:2] + [{"role": "user", "content":
                 messages[1]["content"] +
                 "\n\n注意：上一次你把全部预算用在了思考上，没有输出代码。"
@@ -313,11 +343,17 @@ def run(brief, workdir, verbose=True):
                       "请针对这些问题修正，重新给出完整脚本（不要只给片段）。"
                       "风格、金句、冷知识都不要动。".format(probs)}]
 
-        # 控制上下文膨胀：只保留系统提示 + 首个任务 + 最近两轮往返。
+        # 控制上下文膨胀：保留系统提示 + 首个任务 + 最近四轮往返。
         # **历史轮的图不留**（本来也没进 messages —— critique 用的是临时副本），
-        # 否则 7 轮下来上下文里躺着 7 张 3000px 的卡。
-        if len(messages) > 8:
-            messages = messages[:2] + messages[-4:]
+        # 否则 12 轮下来上下文里躺着 12 张 3000px 的卡。
+        #
+        # 2026-09-01 从「最近两轮」放宽到四轮。截断本身是必要的（图不留、上下文
+        # 不能无限涨），但砍到两轮纯粹是省钱：模型看不见自己第 2 轮试过什么、
+        # 为什么放弃，就会绕回去再改一遍同一处 —— 而 Claude 那条线的会话从头到尾
+        # 完整，记得自己每一版做过什么。这一刀砍掉的不是算力，是记性。
+        # 四轮往返里仍然一张图都没有，涨的只是文本。
+        if len(messages) > 12:
+            messages = messages[:2] + messages[-8:]
 
     if keep:
         keep.update({"history": history, "critiques": critiques,

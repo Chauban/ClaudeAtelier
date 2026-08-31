@@ -66,29 +66,30 @@
 - **文字直接用 `ImageDraw.text` + `ImageFont.truetype`**，没有别的限制。
 - 先按行测量文本宽度（`draw.textbbox`）确保不溢出，排版算好总高度再定画布高度。
 
-### 字体：先查再用，不要照抄下面这份清单
+### 字体：这台机器上实际有什么
 
-清单会过时，而漏掉一个字重就会让某些风格无谓地退回黑体。脚本里不能 `import os`，
-所以**在你写脚本之前**就把字体路径定下来；截至 2026-08-12 这台机器上应当有：
+脚本在无网络的子进程里跑，不能 `import os`，你也跑不了 shell。所以下面这份清单是
+**开工前替你扫出来的实况** —— 渲染机当场遍历字体目录生成，列出每个文件、以及它
+每个 face 的索引和名字。它不是写死的表格，换了镜像会自己跟着变。
 
-| 用途 | 文件 |
-|---|---|
-| 中日韩黑体 | `/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc` 与 `-Bold.ttc` |
-| 中日韩衬线 | `/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc` 与 `-Bold.ttc` |
-| 拉丁无衬线 | `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf` 及 `-Bold` |
-| 拉丁衬线 | `/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf` 及 `-Bold` |
-| 拉丁等宽 | `/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf` 及 `-Bold` / `-Oblique` |
+用哪一个、`.ttc` 取哪个 face，**由你判断**：
 
-`.ttc` 的 face 索引：**2 = 简体，3 = 繁体（台湾），4 = 繁体（香港），0 = 日文，
-1 = 韩文**，例如 `ImageFont.truetype(path, size, index=2)`。**索引不许硬编码成别的值。**
+```
+{{FONT_INVENTORY}}
+```
 
-两件容易踩的事：
+调用方式 `ImageFont.truetype(路径, 字号, index=面索引)`。**索引以上面列出的 face 名
+为准**，别按记忆里的数字硬编码 —— 同一份 Noto CJK 在不同构建里 face 的顺序并不保证一致。
+
+三件容易踩的事：
 
 1. **拉丁字体画不出汉字**，会变成方框。中文标点（`，。「」《》`）也必须用 CJK 字体。
 2. **Noto CJK 的 SC/TC/JP/KR 各 face 覆盖的汉字几乎相同**，所以用日文 face 画简体中文
-   *不会*缺字、不会报错、图上也看不太出来 —— 但字形是错的。按 `LANG_CODE` 选对索引。
+   *不会*缺字、不会报错、图上也看不太出来 —— 但字形是错的。按 `LANG_CODE` 认准 face
+   名里的 SC / TC / HK / JP / KR，**认名字，不认数字**。
 3. 老报纸、水墨、侘寂、青花瓷、植物图鉴这类风格，正文该用**衬线中文 Regular**，
-   别因为顺手就整段用粗体，也别退回黑体。
+   别因为顺手就整段用粗体，也别退回黑体。上面清单里漏看一个字重，就会让整张卡
+   无谓地退回黑体。
 
 ## 禁止事项
 
