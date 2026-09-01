@@ -1,7 +1,20 @@
 # ClaudeAtelier · 卡片收藏
 
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **135** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **136** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0136 · 3D 黏土渲染 Claymorphism · 德文
+
+<img src="web/2026-09/NO.0136_2026-09-01_S41-黏土渲染_DE.webp" width="320">
+
+> Das Dunkel auf dir ist oft nur der Staub, den ein anderer verlor.（你身上的黑，往往只是别人失落的尘。）
+
+**天文与宇宙** — 1671 sah Giovanni Cassini den Saturnmond Iapetus nur westlich des Planeten; östlich blieb er unsichtbar. Erst 1705 erwischte er ihn dort — zwei Größenklassen dunkler — und schloss richtig auf eine helle und eine dunkle Hälfte. Die Erklärung fand Spitzer 2009: ein Staubring vom rückläufigen Mond Phoebe, von etwa 128 bis über 207 Saturnradien, um 27° gegen die Hauptringe gekippt — der größte bekannte Planetenring. Iapetus pflügt mit seiner Vorderseite hindurch und sammelt den Staub auf.（1671 年，卡西尼只在土星西侧看得见土卫八，东侧则完全消失。1705 年他终于在东侧捕捉到它——暗了整整两个星等——并正确推断它有一亮一暗两个半球。答案要等到 2009 年：斯皮策望远镜找到一圈来自逆行卫星土卫九的尘埃环，从约 128 倍土星半径延伸到 207 倍开外，与主环面成 27° 倾角，是已知最大的行星环。土卫八正用迎面的那一侧从中穿行，一路把尘埃扫在脸上。）
+
+`2026-09-01 20:10` ｜ [原图](Cards/2026-09/NO.0136_2026-09-01_S41-黏土渲染_DE.png) ｜ [文字](text/2026-09/NO.0136_2026-09-01_S41-黏土渲染_DE.md)
 
 ---
 
@@ -1759,3 +1772,4 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
+
