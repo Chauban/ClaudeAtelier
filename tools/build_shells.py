@@ -379,8 +379,14 @@ def build(check=False):
 
             serial = "NO." + no4
             deep = ("../../#" + ("" if ai == "claude" else ai + "/") + serial)
-            canon = (SITE_ORIGIN + "/c/{}/{}.html".format(ai, no4)) if SITE_ORIGIN \
-                else "/c/{}/{}.html".format(ai, no4)
+            # Cloudflare Workers 的静态资源默认 html_handling 会把 `/x.html`
+            # 307 重定向到无扩展名的 `/x`。所以对外声明的地址（canonical /
+            # og:url / sitemap loc）一律写**无扩展名**那个：写 .html 的话每条
+            # URL 都要多跳一次，而且搜索引擎最终收录的是跳转后的地址，和
+            # canonical 声明的对不上 —— 正好废掉 canonical 的作用。
+            # 落盘的文件名不动，仍然是 c/{ai}/{编号}.html。
+            pub = "c/{}/{}".format(ai, no4)
+            canon = (SITE_ORIGIN + "/" + pub) if SITE_ORIGIN else "/" + pub
             img_abs = ((SITE_ORIGIN + "/" + enc_path(webrel)) if SITE_ORIGIN
                        else "/" + enc_path(webrel))
 
@@ -433,8 +439,7 @@ def build(check=False):
             written.append(rel)
             # lastmod 用卡片自己的日期，不用文件 mtime —— 壳页是可再生的，
             # 每次全量重跑 mtime 都会变成今天，那对爬虫是纯噪音。
-            sitemap_rows.append(("c/{}/{}.html".format(ai, no4),
-                                 iso_dt(r.get("datetime"))[:10]))
+            sitemap_rows.append((pub, iso_dt(r.get("datetime"))[:10]))
 
     extra_files = write_sitemap(sitemap_rows, check)
 
