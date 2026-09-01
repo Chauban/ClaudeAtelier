@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://claudeatelier.bingogreen.workers.dev/sitemap.xml
