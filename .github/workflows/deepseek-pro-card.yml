@@ -35,8 +35,13 @@ on:
   # 临时降频：每天仅北京时间 00:00 跑一次，对应 UTC 前一天 16:00。
   # DeepSeek flash / Pro 同时跑；K（领域）和 L（语言）仍按原来的 4 小时
   # 班次网格计算，因此只改触发频率，不改台账 slot 的既有语义。
-  schedule:
-    - cron: '0 16 * * *'       # UTC；北京时间每天 00:00
+  # 2026-09-09 暂停：DeepSeek 两条线的定时生成整体停掉。本机计划任务
+  # ClaudeAtelier-Trigger-Pro 已 Disable；这条兜底 cron 也必须一并注释，
+  # 否则本机停了它照样每天出卡 —— 那正是它当初被留下来的理由。
+  # workflow_dispatch 保留：手动催卡仍然可用。
+  # 恢复：取消下面两行的注释，并 Enable-ScheduledTask ClaudeAtelier-Trigger-Pro。
+  # schedule:
+  #   - cron: '0 16 * * *'       # UTC；北京时间每天 00:00
 
 permissions: {}
 
