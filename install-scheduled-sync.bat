@@ -44,9 +44,11 @@ rem ---- remove superseded tasks if they are still around ------
 schtasks /Delete /TN "ClaudeAtelier-Sync-Daily" /F >nul 2>&1
 schtasks /Delete /TN "ClaudeAtelier-Sync-Every15Min" /F >nul 2>&1
 
-rem  /RI 240 /DU 24:00 = repeat every 240 min for a full day,
-rem  i.e. 00:30 04:30 08:30 12:30 16:30 20:30 from ONE task.
-schtasks /Create /TN "ClaudeAtelier-Sync" /TR "\"%SCRIPT%\" auto" /SC DAILY /ST 00:30 /RI 240 /DU 24:00 /F
+rem  2026-09-09: one run a day, 14:00 local, on request.
+rem  Was /SC DAILY /ST 00:30 /RI 240 /DU 24:00 -- every 4 h
+rem  (00:30 04:30 08:30 12:30 16:30 20:30) from ONE task.
+rem  Cards made between two syncs wait up to 24 h to go live.
+schtasks /Create /TN "ClaudeAtelier-Sync" /TR "\"%SCRIPT%\" auto" /SC DAILY /ST 14:00 /F
 schtasks /Create /TN "ClaudeAtelier-Sync-OnLogon" /TR "\"%SCRIPT%\" auto" /SC ONLOGON /DELAY 0005:00 /F
 
 echo.
