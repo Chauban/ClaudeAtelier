@@ -1,6 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **145** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **146** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0146 · 植物学图鉴插画 · 英文
+
+<img src="web/2026-09/NO.0146_2026-09-10_S20-植物图鉴_EN.webp" width="320">
+
+> Some things only look finished. A fern spends the whole winter deciding how to open.
+
+**数学与数字** — In 1989 Heiner Marxen and Jürgen Buntrock found a five-state Turing machine that halts after 47,176,870 steps. No one found a longer one — and no one could prove none existed. In July 2024 the bbchallenge collaboration, largely amateurs working online, settled the fate of all 181,385,789 five-state machines and had the whole argument verified in the Coq proof assistant. BB(5) = 47,176,870, thirty-five years after the question was asked.
+
+`2026-09-10 12:09` ｜ [原图](Cards/2026-09/NO.0146_2026-09-10_S20-植物图鉴_EN.png) ｜ [文字](text/2026-09/NO.0146_2026-09-10_S20-植物图鉴_EN.md)
 
 ---
 
@@ -1888,3 +1901,4 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
+
