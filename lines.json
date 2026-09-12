@@ -1,0 +1,24 @@
+{
+  "_": "产线状态登记表。watchdog 读它，暂停的线不再告警。JSON 不能写注释，所以说明写在 note 里。停一条线（禁用 workflow、删掉本机触发任务）之后必须回来改这里并提交 —— 2026-08-14 停 Kimi 时没有这一步，结果 watchdog 为它连报了一个月，81 条评论，真出事也没人看了。字段：paused 是否暂停、since 从哪天起、stale_hours 多久没出卡算停摆（只对运行中的线有意义）、note 给人看的原因。没登记的产线一律按运行中、默认阈值处理。",
+
+  "claude": {
+    "paused": false,
+    "stale_hours": 30,
+    "note": "每天本地 12:00 一班（Cowork 定时任务 verse-fact-card）。一天一班，所以阈值放到 30 小时，不是默认的 10"
+  },
+  "deepseekv4flash": {
+    "paused": true,
+    "since": "2026-09-09",
+    "note": "省 API 开销。本机 ClaudeAtelier-Trigger-Flash 已禁用；workflow 里的 cron 兜底也一并停了"
+  },
+  "deepseekv4pro": {
+    "paused": true,
+    "since": "2026-09-09",
+    "note": "同 flash，本机 ClaudeAtelier-Trigger-Pro 已禁用"
+  },
+  "kimik3": {
+    "paused": true,
+    "since": "2026-08-14",
+    "note": "kimi-card.yml 在 GitHub 上手动 disable（disabled_manually），本机 ClaudeAtelier-Trigger-Kimi 已删除"
+  }
+}
