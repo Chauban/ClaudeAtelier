@@ -1,6 +1,19 @@
 # ClaudeAtelier · 卡片收藏
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **148** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **149** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+
+### NO.0149 · 雑誌エディトリアル（雑誌編集・大見出し組版） · 日文
+
+<img src="web/2026-09/NO.0149_2026-09-15_S11-雑誌エディトリアル_JA.webp" width="320">
+
+> からだは、わたしに相談せずに、今日も正しく動いている。
+
+**人体与生理** — 苦味の受容体は舌だけのものだと思われていた。二〇一〇年、メリーランド大学のディーパック・デシュパンデとスティーヴン・リゲットは、それが気道の平滑筋にもあることを『ネイチャー・メディシン』に報告する。しかも苦味物質を与えると気道は縮まるどころか広がり、その拡張は喘息治療に使われるβ刺激薬のおよそ三倍に達した。この受容体は脳につながっていないので、苦いという味は生じない。舌ではないところで、からだは静かに苦さを読む。
+
+`2026-09-15 12:09` ｜ [原图](Cards/2026-09/NO.0149_2026-09-15_S11-雑誌エディトリアル_JA.png) ｜ [文字](text/2026-09/NO.0149_2026-09-15_S11-雑誌エディトリアル_JA.md)
 
 ---
 
@@ -63,7 +76,7 @@
 
 > « Le monde ne nous doit pas d’être simple ; il nous doit seulement d’être vrai. »（世界没有义务让我们看得懂，它只有义务是真的。）
 
-**化学与材料** — Le 16 juillet 1945, à 5 h 29, la première bombe atomique vitrifie le sable du désert d’Alamogordo et les câbles de cuivre de la tour de tir : c’est la trinitite. En 2021, Luca Bindi et Paul Steinhardt repèrent dans un éclat de trinitite rouge un grain de 10 micromètres, Si61Cu30Ca7Fe2 — un quasi-cristal à symétrie d’ordre cinq, longtemps jugée impossible dans un cristal. C’est le plus ancien quasi-cristal fabriqué par l’homme, et le seul dont on connaisse la seconde de naissance. （1945年7月16日清晨5点29分，第一颗原子弹把阿拉莫戈多沙漠的沙子和试验塔的铜缆烧成了玻璃，这就是“三位一体石”。2021年，宾迪与斯坦哈特在一小块红色三位一体石里找到一粒10微米的晶体：Si61Cu30Ca7Fe2——一种五重对称的准晶，而五重对称曾长期被认为在晶体里不可能存在。它是人类造出的最古老的准晶，也是唯一知道自己诞生于哪一秒的准晶。）
+**化学与材料** — Le 16 juillet 1945, à 5 h 29, la première bombe atomique vitrifie le sable du désert d’Alamogordo et les câbles de cuivre de la tour de tir : c’est la trinitite. En 2021, Luca Bindi et Paul Steinhardt repèrent dans un éclat de trinitite rouge un grain de 10 micromètres, Si61Cu30Ca7Fe2 — un quasi-cristal à symétrie d’ordre cinq, longtemps jugée impossible dans un cristal. C’est le plus ancien quasi-cristal fabriqué par l’homme, et le seul dont on connaisse la seconde de naissance.  （1945年7月16日清晨5点29分，第一颗原子弹把阿拉莫戈多沙漠的沙子和试验塔的铜缆烧成了玻璃，这就是“三位一体石”。2021年，宾迪与斯坦哈特在一小块红色三位一体石里找到一粒10微米的晶体：Si61Cu30Ca7Fe2——一种五重对称的准晶，而五重对称曾长期被认为在晶体里不可能存在。它是人类造出的最古老的准晶，也是唯一知道自己诞生于哪一秒的准晶。）
 
 `2026-09-06 12:09` ｜ [原图](Cards/2026-09/NO.0144_2026-09-06_S46-立体堆叠卡片_FR.png) ｜ [文字](text/2026-09/NO.0144_2026-09-06_S46-立体堆叠卡片_FR.md)
 
@@ -347,7 +360,7 @@
 
 <img src="web/2026-08/NO.0122_2026-08-30_S36-枯山水_ZH-HK.webp" width="320">
 
-> 風送得遠 卻不認得路 有些東西 非要交給 一對肯落地的腳
+> 風送得遠　卻不認得路　有些東西　非要交給　一對肯落地的腳
 
 **昆虫与植物** — 苔蘚的孢子幾乎全部交給風，只有糞蘚科例外。牠們只長在鹿糞、獸骨和貓頭鷹的食繭上，孢子囊下脹成一個黃或粉紅的小氣球，散出酚與吲哚——糞便和腐肉的氣味——引蒼蠅前來停腳。孢子細小而黏，黏在蒼蠅腳上，被帶往下一堆新鮮的糞。在所有陸生植物之中，用昆蟲運送孢子的只有這一科。
 
@@ -1927,4 +1940,3 @@
 `2026-07-29 10:58` ｜ [原图](Cards/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.png) ｜ [文字](text/2026-07/NO.0001_2026-07-29_S18-CRT终端绿字_FR.md)
 
 ---
-
