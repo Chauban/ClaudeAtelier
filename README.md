@@ -1,9 +1,21 @@
 # ClaudeAtelier · 卡片收藏
 每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **156** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+目前共 **157** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
 
 ---
 
+
+### NO.0157 · 剪纸拼贴 · 英文
+
+<img src="web/2026-09/NO.0157_2026-09-24_S23-剪纸拼贴_EN.webp" width="320">
+
+> Some falls last long enough to stop feeling like falling, and start feeling like flight.（有些坠落久到不再像坠落，倒像是一场飞行。）
+
+**天文与宇宙** — On Miranda, a small moon of Uranus, Voyager 2's 1986 flyby photographed Verona Rupes — the tallest known cliff in the Solar System, commonly cited at roughly 20 km high (some later analyses, working from that single oblique image, suggest a lower 5–10 km). Miranda's gravity is barely a hundredth of Earth's, so something dropped from the rim would fall for about 12 minutes before it landed.（在天王星的卫星米兰达上，1986年旅行者2号飞掠时拍下了维罗纳峭壁——太阳系已知最高的悬崖，通常认为约20公里高，也有后续分析依据那张斜视孤证影像，认为实际可能只有5至10公里。米兰达的重力只有地球的百分之一左右，从崖顶跌落的东西大约要坠落12分钟才会落地。）
+
+`2026-09-24 12:17` ｜ [原图](Cards/2026-09/NO.0157_2026-09-24_S23-剪纸拼贴_EN.png) ｜ [文字](text/2026-09/NO.0157_2026-09-24_S23-剪纸拼贴_EN.md)
+
+---
 
 ### NO.0156 · 禅意枯山水 · 日文
 
