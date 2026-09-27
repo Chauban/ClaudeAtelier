@@ -1,6 +1,18 @@
 # ClaudeAtelier · 卡片收藏
-每 4 小时自动生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
-目前共 **159** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+每天生成一张竖版卡片：一句金句 + 一条核实过的冷知识，47 种设计风格轮换，7 种语言轮换。
+目前共 **160** 张。原图在 `Cards/`，压缩版在 `web/`，文字副本在 `text/`，台账在 `Cards/cards-index.csv`。
+
+---
+
+### NO.0160 · 极光渐变梦幻 · 西班牙文
+
+<img src="web/2026-09/NO.0160_2026-09-27_S27-极光渐变_ES.webp" width="320">
+
+> No hace falta inventar el orden: basta con esperar a que el caos, en cualquier rincón del universo, tropiece con el mismo compás.（无需发明秩序：只需等混沌，在宇宙的任何一个角落，都撞上同一个节拍。）
+
+**数学与数字** — En diciembre de 1974 el físico Mitchell Feigenbaum recibió su primera calculadora programable, una HP-65. Iterando a mano el mapa logístico, en agosto de 1975 obtuvo —con solo tres decimales, el límite del aparato— un número que volvía a aparecer entre cada bifurcación de duplicación de periodo: 4.669. Dos meses después comprobó que ese mismo número gobernaba toda una clase de funciones sin relación aparente entre sí. Su primer artículo, terminado en abril de 1976, fue rechazado tras medio año de revisión; cuando por fin se publicó en 1978, más de mil científicos ya habían pedido una copia del manuscrito inédito.（1974年12月，物理学家米切尔·费根鲍姆拿到了他第一台可编程计算器HP-65。他用它手动反复迭代逻辑斯蒂映射，1975年8月算出一个数字——受限于计算器只能精确到三位小数——它在每一次倍周期分岔之间反复出现：4.669。两个月后他发现，这同一个数字竟支配着一整类彼此毫不相关的函数。他1976年4月完成的第一篇论文，被期刊压了半年后拒稿；等到1978年正式发表时，已有一千多名科学家提前索要过这份未发表的手稿。）
+
+`2026-09-27 12:11` ｜ [原图](Cards/2026-09/NO.0160_2026-09-27_S27-极光渐变_ES.png) ｜ [文字](text/2026-09/NO.0160_2026-09-27_S27-极光渐变_ES.md)
 
 ---
 
